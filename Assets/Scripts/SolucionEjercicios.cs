@@ -41,14 +41,14 @@ public class SolucionEjercicios : MonoBehaviour
 
     private void Exercise1()
     {
-        Quaternion rotation = Quaternion.AngleAxis(Angle, Vector3.up);
+        MyQuaternion rotation = MyQuaternion.AngleAxis(Angle, Vector3.up);
 
         vectorA = rotation * vectorA;
     }
 
     private void Exercise2()
     {
-        Quaternion rotation = Quaternion.AngleAxis(Angle, Vector3.up);
+        MyQuaternion rotation = MyQuaternion.AngleAxis(Angle, Vector3.up);
 
         vectorB = rotation * vectorB;
         vectorC = rotation * vectorC;
@@ -57,11 +57,11 @@ public class SolucionEjercicios : MonoBehaviour
 
     private void Exercise3()
     {
-        Quaternion rotation = Quaternion.AngleAxis(Angle, vectorF);
+        MyQuaternion rotation = MyQuaternion.AngleAxis(Angle, vectorF);
 
         vectorE = rotation * vectorE;
 
-        rotation = Quaternion.Inverse(Quaternion.AngleAxis(Angle, vectorF));
+        rotation = MyQuaternion.Inverse(MyQuaternion.AngleAxis(Angle, vectorF));
 
         vectorG = rotation * vectorG;
     }
@@ -87,7 +87,6 @@ public class SolucionEjercicios : MonoBehaviour
             Gizmos.DrawLine(vectorE, transform.position + vectorF);
             Gizmos.DrawLine(vectorF, transform.position + vectorG);
             Gizmos.DrawLine(vectorG, transform.position + vectorH);
-
         }
     }
 }
