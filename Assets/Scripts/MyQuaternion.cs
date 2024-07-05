@@ -87,7 +87,7 @@ public class MyQuaternion : MonoBehaviour
         }
     }
     
-    public Vector3 eulerAngles //Returns or sets the euler angle representation of the rotation in degrees.
+    public Vector3 eulerAngles 
     {
         get
         {
@@ -150,11 +150,16 @@ public class MyQuaternion : MonoBehaviour
         }
     }
 
-    public MyQuaternion normalized //Returns this quaternion with a magnitude of 1.
+    public MyQuaternion normalized //Devuelve este quaternion con magnitud 1.
     {
         get
         {
-            throw new NotImplementedException();
+            if(magnitude < kEpsilon)
+            {
+                return identity;
+            }
+
+            return new MyQuaternion(x / magnitude, y / magnitude, z / magnitude, w / magnitude);
         }
     }
 
@@ -333,13 +338,14 @@ public class MyQuaternion : MonoBehaviour
 
     public static MyQuaternion Normalize(MyQuaternion q)
     {
-        float num = Mathf.Sqrt(Dot(q, q));
-        if (num < Mathf.Epsilon)
+        float magnitude = Mathf.Sqrt(Dot(q, q));
+
+        if (magnitude < kEpsilon)
         {
             return identity;
         }
 
-        return new MyQuaternion(q.x / num, q.y / num, q.z / num, q.w / num);
+        return new MyQuaternion(q.x / magnitude, q.y / magnitude, q.z / magnitude, q.w / magnitude);
     }
 
     public void Normalize()
@@ -367,12 +373,12 @@ public class MyQuaternion : MonoBehaviour
 
     public bool Equals(MyQuaternion other)
     {
-        return x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w);
+        return x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w); //Incorpora el Equals de float
     }
 
     public override string ToString()
     {
-        throw new NotImplementedException();
+        return $"({x}, {y}, {z}, {w})";
     }
 
 
@@ -394,7 +400,8 @@ public class MyQuaternion : MonoBehaviour
         return dot > 0.999999f;
     }
 
-    public static bool operator ==(MyQuaternion lhs, MyQuaternion rhs)
+    public static bool operator ==(MyQuaternion lhs, MyQuaternion rhs) //Para quaternions normalizados un producto punto de 1 indica que los quaternions son idénticos,
+                                                                       //y cualquier valor cercano a 1 indica que son casi idénticos, dentro de un margen de error
     {
         return IsEqualUsingDot(Dot(lhs, rhs));
     }
