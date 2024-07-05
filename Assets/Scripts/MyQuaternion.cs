@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
-public class MyQuaternion : MonoBehaviour
+public class MyQuaternion
 {
     #region PROPIEDADES
 
@@ -63,6 +63,11 @@ public class MyQuaternion : MonoBehaviour
         this.w = w;
     }
 
+    public MyQuaternion()
+    {
+
+    }
+
     public void Set(float newX, float newY, float newZ, float newW) //Setea los valores de un quaternion existente
     {
         x = newX;
@@ -86,8 +91,8 @@ public class MyQuaternion : MonoBehaviour
             return Mathf.Sqrt(x * x + y * y + z * z + w * w);
         }
     }
-    
-    public Vector3 eulerAngles 
+
+    public Vector3 eulerAngles
     {
         get
         {
@@ -154,7 +159,7 @@ public class MyQuaternion : MonoBehaviour
     {
         get
         {
-            if(magnitude < kEpsilon)
+            if (magnitude < kEpsilon)
             {
                 return identity;
             }
@@ -168,47 +173,228 @@ public class MyQuaternion : MonoBehaviour
     #region FUNCIONES
     public static MyQuaternion FromToRotation(Vector3 fromDirection, Vector3 toDirection)
     {
-        throw new NotImplementedException();
+        //Con producto cruz obtengo un vector perpendicular a los que tengo (axis)
+        Vector3 axis = Vector3.Cross(fromDirection, toDirection);
+
+        //Calculamos el angulo entre los dos vectores
+        float angle = Vector3.Angle(fromDirection, toDirection);
+
+        //Va a girar en el eje pasado la cantidad de ángulos pasados
+        return AngleAxis(angle, axis);
     }
 
     public static MyQuaternion Inverse(MyQuaternion rotation)
     {
-        throw new NotImplementedException();
+        return new MyQuaternion(-rotation.x, -rotation.y, -rotation.z, rotation.w);
     }
 
     public static MyQuaternion Slerp(MyQuaternion a, MyQuaternion b, float t)
     {
-        throw new NotImplementedException();
+        return SlerpUnclamped(a, b, Mathf.Clamp01(t));
     }
 
+    // Spherically interpolates between a and b by t. The parameter t is not clamped.
     public static MyQuaternion SlerpUnclamped(MyQuaternion a, MyQuaternion b, float t)
     {
-        throw new NotImplementedException();
+        //https://en.wikipedia.org/wiki/Slerp#:~:text=0%20and%C2%A01.-,Geometric%20slerp,-%5Bedit%5D
+
+        MyQuaternion normA = a.normalized;
+        MyQuaternion normB = b.normalized;
+
+        float cosOmega = Dot(normA, normB);
+
+        if (cosOmega < 0.0f)
+        {
+            // Flip the interpolation
+            cosOmega = -cosOmega;
+        }
+
+        float coeff1, coeff2;
+
+        float omega = Mathf.Acos(cosOmega);
+
+        coeff1 = Mathf.Sin((1 - t) * omega) / Mathf.Sin(omega);
+        coeff2 = (cosOmega < 0.0f ? -1 : 1) * (Mathf.Sin(t * omega) / Mathf.Sin(omega));
+
+        return new MyQuaternion(
+                coeff1 * normA.x + coeff2 * normB.x,
+                coeff1 * normA.y + coeff2 * normB.y,
+                coeff1 * normA.z + coeff2 * normB.z,
+                coeff1 * normA.w + coeff2 * normB.w
+            );
     }
 
+    // Interpolates between a and b by t and normalizes the result afterwards. The parameter t is clamped to the range [0, 1]
+    // returns A quaternion interpolated between quaternions a and b.
     public static MyQuaternion Lerp(MyQuaternion a, MyQuaternion b, float t)
     {
-        throw new NotImplementedException();
+        return LerpUnclamped(a, b, Mathf.Clamp01(t));
     }
 
+    // Interpolates between a and b by t and normalizes the result afterwards. The parameter t is not clamped
     public static MyQuaternion LerpUnclamped(MyQuaternion a, MyQuaternion b, float t)
     {
-        throw new NotImplementedException();
+        MyQuaternion result = identity;
+
+        if (Dot(a, b) >= float.Epsilon) // Checks which is the shortest path to rotate thowards that path.
+        {
+            result.x = a.x + (b.x - a.x) * t;
+            result.y = a.y + (b.y - a.y) * t;
+            result.z = a.z + (b.z - a.z) * t;
+            result.w = a.w + (b.w - a.w) * t;
+        }
+        else // Go in other direction
+        {
+            result.x = a.x - (b.x - a.x) * t;
+            result.y = a.y - (b.y - a.y) * t;
+            result.z = a.z - (b.z - a.z) * t;
+            result.w = a.w - (b.w - a.w) * t;
+        }
+
+        return result;
     }
 
     public static MyQuaternion AngleAxis(float angle, Vector3 axis)
     {
-        throw new NotImplementedException();
+        axis.Normalize();
+        axis *= Mathf.Sin(angle * Mathf.Deg2Rad * 0.5f); //Obtengo el eje rotado como se ve en la formula para rotar en 3D
+
+        return new MyQuaternion(axis.x, axis.y, axis.z, Mathf.Cos(angle * Mathf.Deg2Rad * 0.5f)); //Le paso los ejes rotados correspondientes y la parte real es el cos del angulo/2
     }
 
     public static MyQuaternion LookRotation(Vector3 forward, Vector3 upwards)
     {
-        throw new NotImplementedException();
+        // If forward is almost zero return identity
+        if (forward.magnitude <= kEpsilon) return MyQuaternion.identity;
+
+        // First, set the axis to use for the rotation
+        Vector3 forwardToUse = forward.normalized;
+        Vector3 rightToUse = Vector3.Cross(upwards, forward).normalized;
+        Vector3 upToUse = upwards.normalized;
+
+        // Now we have to make the rotation matrix, using the created axis values.
+        // every row of the matrix is one axis in the order of X Y Z 
+
+        float m00 = rightToUse.x;
+        float m01 = rightToUse.y;
+        float m02 = rightToUse.z;
+
+        float m10 = upToUse.x;
+        float m11 = upToUse.y;
+        float m12 = upToUse.z;
+
+        float m20 = forwardToUse.x;
+        float m21 = forwardToUse.y;
+        float m22 = forwardToUse.z;
+
+        // Lastly, we have to do a conversion from the Rotation Matrix to a Quaternion.
+        //https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf
+
+        // First we have to know which equations we should use, depending on which quaternion value we are
+        // Certain it will not be zero. Then, we apply the correct matrix equations from the sums and substractions
+        // created equations.
+
+        MyQuaternion result;
+        float factor;
+
+        if (m22 < 0) // sqr(X) + sqr(Y) > 1/2, which is the same to say that |(X, Y)| > |(Z, W)| if normalized
+        {
+            // We know for certain sqr(X) + sqr(Y) > 1/2, so we have to check which one is bigger to be certain its not zero
+            if (m00 > m11) // is X bigger than Y ?
+            {
+                // We know for certain X is not zero, so we take the x value from the trace.
+                factor = 1 + m00 - m11 - m22; // sqr(X)
+
+                // And the result is the equations that have multiplied by 4X.
+                result = new MyQuaternion(factor, m10 + m01, m20 + m02, m12 - m21);
+            }
+            else
+            {
+                // We know for certain Y is not zero
+                factor = 1 - m00 + m11 - m22; // sqr(Y)
+
+                // And the result is the equations that have multiplied by 4Y.
+                result = new MyQuaternion(m01 + m10, factor, m12 + m21, m20 - m02);
+            }
+        }
+        else
+        {
+            // We know for certain sqr(Z) + sqr(W) > 1/2, so we have to check which one is bigger to be certain its not zero
+            if (m00 < -m11) // Is Z bigger than W ?
+            {
+                // We know for certain Z is not zero
+                factor = 1 - m00 - m11 + m22; // sqr(Z)
+
+                // And the result is the equations that are multiplied by 4Z.
+                result = new MyQuaternion(m20 + m02, m12 + m21, factor, m01 - m10);
+            }
+            else
+            {
+                // We know for certain W is not zero
+                factor = 1 + m00 + m11 + m22; // sqr(W)
+
+                // And the result is the equations that are multiplied by 4W.
+                result = new MyQuaternion(m12 - m21, m20 - m02, m01 - m10, factor);
+            }
+        }
+        // Finally, we have to take out the factor that is in the quaternion.
+
+        result *= 0.5f / Mathf.Sqrt(factor);
+
+        return result;
+
     }
 
     public static MyQuaternion LookRotation(Vector3 forward)
     {
-        return LookRotation(forward, Vector3.up);
+        Vector3 upwards = Vector3.up;
+        forward.Normalize();
+
+        Vector3 vector2 = Vector3.Cross(upwards, forward).normalized;
+        Vector3 vector3 = Vector3.Cross(forward, vector2);
+
+
+        float diagonal = vector2.x + vector3.y + forward.z;
+        var quaternion = new MyQuaternion();
+        if (diagonal > 0f)
+        {
+            var cos = (float)Math.Sqrt(diagonal + 1f);
+            quaternion.w = cos * 0.5f;
+            cos = 0.5f / cos;
+            quaternion.x = (vector3.z - forward.y) * cos;
+            quaternion.y = (forward.x - vector2.z) * cos;
+            quaternion.z = (vector2.y - vector3.x) * cos;
+            return quaternion;
+        }
+        if ((vector2.x >= vector3.y) && (vector2.x >= forward.z)) //si el primer valor de la matriz es mayor o igual a sus dos en diagonal
+        {
+            var cos1 = (float)Math.Sqrt(((1f + vector2.x) - vector3.y) - forward.z); //Cos
+            var num4 = 0.5f / cos1;
+            quaternion.x = 0.5f * cos1;
+            quaternion.y = (vector2.y + vector3.x) * num4;
+            quaternion.z = (vector2.z + forward.x) * num4;
+            quaternion.w = (vector3.z - forward.y) * num4;
+            return quaternion;
+        }
+        if (vector3.y > forward.z)
+        {
+            var num6 = (float)Math.Sqrt(((1f + vector3.y) - vector2.x) - forward.z);
+            var num3 = 0.5f / num6;
+            quaternion.x = (vector3.x + vector2.y) * num3;
+            quaternion.y = 0.5f * num6;
+            quaternion.z = (forward.y + vector3.z) * num3;
+            quaternion.w = (forward.x - vector2.z) * num3;
+            return quaternion;
+        }
+
+        var num5 = (float)Math.Sqrt(((1f + forward.z) - vector2.x) - vector3.y);
+        var num2 = 0.5f / num5;
+        quaternion.x = (forward.x + vector2.z) * num2;
+        quaternion.y = (forward.y + vector3.z) * num2;
+        quaternion.z = 0.5f * num5;
+        quaternion.w = (vector2.y - vector3.x) * num2;
+
+        return quaternion;
     }
 
     public static float Dot(MyQuaternion a, MyQuaternion b)
@@ -230,10 +416,19 @@ public class MyQuaternion : MonoBehaviour
         SetLookRotation(view, up);
     }
 
-    public static float Angle(MyQuaternion a, MyQuaternion b)
+    public static float Angle(MyQuaternion a, MyQuaternion b) //Devuelve el angulo en grados entre dos rotaciones. Va en un rango entre 0 y 180
     {
-        float num = Mathf.Min(Mathf.Abs(Dot(a, b)), 1f);
-        return IsEqualUsingDot(num) ? 0f : (Mathf.Acos(num) * 2f * 57.29578f);
+        float dot = Dot(a, b);
+        float dotAbs = Math.Abs(dot);
+
+        if (IsEqualUsingDot(Dot(a, b)))
+        {
+            return 0.0f;
+        }
+        else
+        {
+            return Mathf.Acos(Mathf.Min(dotAbs, 1f)) * 2.0f * Mathf.Rad2Deg; //180 max angulo (con el camino mas corto) y 180° = 1 Rad. Se usa el min para tomar el menor angulo
+        }
     }
 
     private static float NormalizeAngle(float angle)
@@ -322,18 +517,100 @@ public class MyQuaternion : MonoBehaviour
 
     public void ToAngleAxis(out float angle, out Vector3 axis)
     {
-        throw new NotImplementedException();
+        MyQuaternion thisNormalized = this.normalized;
+
+        // To obtain the angle we take it from the real part of the quaternion
+        angle = 2.0f * Mathf.Acos(thisNormalized.w);
+
+        // To obtain the axis values, first we check if we are almost an idenity quaternion
+        float magnitude = Mathf.Sqrt(1f - thisNormalized.w * thisNormalized.w);
+
+        // if magnitude is almost zero, we return any axis, as there is no rotation
+        if (magnitude < 0.0001f)
+        {
+            axis = new Vector3(1, 0, 0);
+        }
+        else
+        {
+            // If we have a rotation, then we divide the imaginary values by the sin of the angle
+            // Note: This does not perform well as we are diving by floats, but for understanding ill leave it like so
+            axis = new Vector3(
+                thisNormalized.x / Mathf.Sin(angle / 2f),
+                thisNormalized.y / Mathf.Sin(angle / 2f),
+                thisNormalized.z / Mathf.Sin(angle / 2f)
+                );
+        }
     }
 
-    public static MyQuaternion RotateTowards(MyQuaternion from, MyQuaternion to, float maxDegreesDelta)
+    public static MyQuaternion RotateTowards(MyQuaternion from, MyQuaternion to, float maxDegreesDelta) //Mover del uno al otro, la cantidad de grados especificada.
     {
         float num = Angle(from, to);
-        if (num == 0f)
+
+        if (num == 0)
         {
             return to;
         }
 
-        return SlerpUnclamped(from, to, Mathf.Min(1f, maxDegreesDelta / num));
+        float t = Mathf.Min(1f, maxDegreesDelta / num);
+        return SlerpUnclamped(from, to, t);
+    }
+
+    public static MyQuaternion GetQuaternionFromRotationMatrix(Vector3 column1, Vector3 column2, Vector3 column3)
+    {
+        //https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf 
+
+        // First we have to know which equations we should use, depending on which quaternion value we are
+        // Certain it will not be zero. Then, we apply the correct matrix equations from the sums and substractions
+        // created equations.
+
+        MyQuaternion result;
+        float factor;
+
+        if (column3.z < 0) // sqr(X) + sqr(Y) > 1/2, which is the same to say that |(X, Y)| > |(Z, W)| if normalized
+        {
+            // We know for certain sqr(X) + sqr(Y) > 1/2, so we have to check which one is bigger to be certain its not zero
+            if (column1.x > column2.y) // is X bigger than Y ?
+            {
+                // We know for certain X is not zero, so we take the x value from the trace.
+                factor = 1 + column1.x - column2.y - column3.z; // sqr(X)
+
+                // And the result is the equations that have multiplied by 4X.
+                result = new MyQuaternion(factor, column2.x + column1.y, column3.x + column1.z, column2.z - column3.y);
+            }
+            else
+            {
+                // We know for certain Y is not zero
+                factor = 1 - column1.x + column2.y - column3.z; // sqr(Y)
+
+                // And the result is the equations that have multiplied by 4Y.
+                result = new MyQuaternion(column1.y + column2.x, factor, column2.z + column3.y, column3.x - column1.z);
+            }
+        }
+        else
+        {
+            // We know for certain sqr(Z) + sqr(W) > 1/2, so we have to check which one is bigger to be certain its not zero
+            if (column1.x < -column2.y) // Is Z bigger than W ?
+            {
+                // We know for certain Z is not zero
+                factor = 1 - column1.x - column2.y + column3.z; // sqr(Z)
+
+                // And the result is the equations that are multiplied by 4Z.
+                result = new MyQuaternion(column3.x + column1.z, column2.z + column3.y, factor, column1.y - column2.x);
+            }
+            else
+            {
+                // We know for certain W is not zero
+                factor = 1 + column1.x + column2.y + column3.z; // sqr(W)
+
+                // And the result is the equations that are multiplied by 4W.
+                result = new MyQuaternion(column2.z - column3.y, column3.x - column1.z, column1.y - column2.x, factor);
+            }
+        }
+        // Finally, we have to take out the factor that is in the quaternion.
+
+        result *= 0.5f / Mathf.Sqrt(factor);
+
+        return result;
     }
 
     public static MyQuaternion Normalize(MyQuaternion q)
@@ -356,7 +633,7 @@ public class MyQuaternion : MonoBehaviour
         this.w = Normalize(this).w;
     }
 
-    public override int GetHashCode()
+    public override int GetHashCode() //De Unity
     {
         return x.GetHashCode() ^ (y.GetHashCode() << 2) ^ (z.GetHashCode() >> 2) ^ (w.GetHashCode() >> 1);
     }
@@ -387,12 +664,30 @@ public class MyQuaternion : MonoBehaviour
     #region OPERADORES
     public static MyQuaternion operator *(MyQuaternion lhs, MyQuaternion rhs)
     {
-        return new MyQuaternion(lhs.w * rhs.x + lhs.x * rhs.w + lhs.y * rhs.z - lhs.z * rhs.y, lhs.w * rhs.y + lhs.y * rhs.w + lhs.z * rhs.x - lhs.x * rhs.z, lhs.w * rhs.z + lhs.z * rhs.w + lhs.x * rhs.y - lhs.y * rhs.x, lhs.w * rhs.w - lhs.x * rhs.x - lhs.y * rhs.y - lhs.z * rhs.z);
+        float x = lhs.w * rhs.x + lhs.x * rhs.w + lhs.y * rhs.z - lhs.z * rhs.y;
+        float y = lhs.w * rhs.y + lhs.y * rhs.w + lhs.z * rhs.x - lhs.x * rhs.z;
+        float z = lhs.w * rhs.z + lhs.z * rhs.w + lhs.x * rhs.y - lhs.y * rhs.x;
+        float w = lhs.w * rhs.w - lhs.x * rhs.x - lhs.y * rhs.y - lhs.z * rhs.z;
+
+        return new MyQuaternion(x, y, z, w);
+    }
+
+    public static MyQuaternion operator *(MyQuaternion q, float value)
+    {
+        return new MyQuaternion(
+            q.x * value,
+            q.y * value,
+            q.z * value,
+            q.w * value
+        );
     }
 
     public static Vector3 operator *(MyQuaternion rotation, Vector3 point)
     {
-        throw new NotImplementedException();
+        MyQuaternion pureVectorQuaternion = new MyQuaternion(point.x, point.y, point.z, 0);
+        MyQuaternion appliedPureQuaternion = rotation * pureVectorQuaternion * MyQuaternion.Inverse(rotation);
+
+        return new Vector3(appliedPureQuaternion.x, appliedPureQuaternion.y, appliedPureQuaternion.z);
     }
 
     private static bool IsEqualUsingDot(float dot)
