@@ -367,7 +367,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         );
     }
 
-    //Crea una matriz de traslacion que, teniendo en cuenta una escala 1, representa la posicion con respecto al origen
+    //Crea una matriz de traslacion que, teniendo en cuenta una escala 1, representa la posicion con respecto al origen //En directX esta abajo
     public static MyMatrix4x4 Translate(Vector3 vector)
     {
         return new MyMatrix4x4(
@@ -551,7 +551,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     }
 
     //Devuelve el vector4 modificado por cada una de las filas de la matriz. Es
-    public static Vector4 operator *(MyMatrix4x4 lhs, Vector4 vector)
+    public static Vector4 operator *(MyMatrix4x4 lhs, Vector4 vector) //TODO: LLamar 4 veces esto en la multiplicacion de 2 matrices 4x4
     {
         return new Vector4(
             lhs.m00 * vector.x + lhs.m01 * vector.y + lhs.m02 * vector.z + lhs.m03 * vector.w,

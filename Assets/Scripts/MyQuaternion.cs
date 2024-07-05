@@ -204,7 +204,7 @@ public class MyQuaternion
 
         float cosOmega = Dot(normA, normB);
 
-        if (cosOmega < 0.0f) //Busca el camino mas corto
+        if (cosOmega < 0.0f) //Busca el camino mas corto //ortodromica
         {
             //Cambia el signo de la interpolacion para ir hacia el otro lado
             cosOmega = -cosOmega;
@@ -297,7 +297,7 @@ public class MyQuaternion
         MyQuaternion result;
         float factor;
 
-        //Se determina qué componente del cuaternión (x, y, z o w) es más significativo basándose en los elementos de la matriz para evitar que en determinadas
+        //Se determina qué componente del cuaternión 4x(x, y, z o w) es más significativo basándose en los elementos de la matriz para evitar que en determinadas
         //situaciones puede volverse todo 0.
 
         if (m22 < 0) // sqr(X) + sqr(Y) > 1/2 que es lo mismo que |(X, Y)| > |(Z, W)| si estan normalizadas
@@ -408,7 +408,7 @@ public class MyQuaternion
         return normalizedAngles;
     }
 
-    public static Vector3 QuatToEulerRad(MyQuaternion q1)
+    public static Vector3 QuatToEulerRad(MyQuaternion q1) //TODO: llamar en get y set de euler estas funciones
     {
         float sqW = q1.w * q1.w;
         float sqX = q1.x * q1.x;
