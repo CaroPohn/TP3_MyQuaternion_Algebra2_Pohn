@@ -45,6 +45,10 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         m33 = column3[3];
     }
 
+    public MyMatrix4x4()
+    {
+    }
+
     public float this[int index]
     {
         get
@@ -113,79 +117,45 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         }
     }
 
-    //
-    // Resumen:
-    //     Returns a matrix with all elements set to zero (Read Only).
-    public static MyMatrix4x4 zero
-    {
-        get
-        {
-            return new MyMatrix4x4(
-                new Vector4(0, 0, 0, 0),
-                new Vector4(0, 0, 0, 0),
-                new Vector4(0, 0, 0, 0),
-                new Vector4(0, 0, 0, 0)
-            );
-        }
-    }
-    //
-    // Resumen:
-    //     Returns the identity matrix (Read Only).
-    public static MyMatrix4x4 identity
-    {
-        get
-        {
-            return new MyMatrix4x4(
-                new Vector4(1, 0, 0, 0),
-                new Vector4(0, 1, 0, 0),
-                new Vector4(0, 0, 1, 0),
-                new Vector4(0, 0, 0, 1)
-            );
-        }
-    }
-    //
-    // Resumen:
-    //     Attempts to get a rotation quaternion from this matrix.
+    public static MyMatrix4x4 zero =>
+        new(
+            new Vector4(0, 0, 0, 0),
+            new Vector4(0, 0, 0, 0),
+            new Vector4(0, 0, 0, 0),
+            new Vector4(0, 0, 0, 0));
+
+    public static MyMatrix4x4 Identity { get; } = new MyMatrix4x4
+   (
+       new Vector4(1, 0, 0, 0),
+       new Vector4(0, 1, 0, 0),
+       new Vector4(0, 0, 1, 0),
+       new Vector4(0, 0, 0, 1)
+   );
+
+    //Obtiene la rotacion en una matriz y la transforma en un quaternion de rotacion
     public MyQuaternion rotation
     {
         get
         {
-            // https://math.stackexchange.com/questions/237369/given-this-transformation-matrix-how-do-i-decompose-it-into-translation-rotati
+            MyMatrix4x4 m = this;
+            MyQuaternion q = MyQuaternion.identity;
 
-            // First we get the rotation matrix again by dividing the scales that affect every axis
+            //Toma la diagonal (m00, m11, m22) que es la escala
+            q.w = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] + m[1, 1] + m[2, 2])) / 2; //Devuelve la raiz de un número que debe ser al menos 0.
+            q.x = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] - m[1, 1] - m[2, 2])) / 2; 
+            q.y = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] + m[1, 1] - m[2, 2])) / 2;
+            q.z = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] - m[1, 1] + m[2, 2])) / 2;
 
-            Vector3 scales = lossyScale;
+            q.x = Mathf.Sign(q.x * (m[2, 1] - m[1, 2]));
+            q.y = Mathf.Sign(q.y * (m[0, 2] - m[2, 0])); //Son los valores de la matriz que se van a modificar
+            q.z = Mathf.Sign(q.z * (m[1, 0] - m[0, 1]));
 
-            float rm00 = m00 / scales.x;
-            float rm10 = m10 / scales.x;
-            float rm20 = m20 / scales.x;
-
-            float rm01 = m01 / scales.y;
-            float rm11 = m11 / scales.y;
-            float rm21 = m21 / scales.y;
-
-            float rm02 = m02 / scales.z;
-            float rm12 = m12 / scales.z;
-            float rm22 = m22 / scales.z;
-
-            return MyQuaternion.GetQuaternionFromRotationMatrix(
-                new Vector3(rm00, rm10, rm20),
-                new Vector3(rm01, rm11, rm21),
-                new Vector3(rm02, rm12, rm22)
-            );
+            return q;
         }
     }
-    //
-    // Resumen:
-    //     Attempts to get a scale value from the matrix. (Read Only)
-    public Vector3 lossyScale =>
-        // https://math.stackexchange.com/questions/237369/given-this-transformation-matrix-how-do-i-decompose-it-into-translation-rotati
-        // Extracting scale is taking the first three column vectors and obtaining its magnitude (As that is what it gives after multiplying)
-        new(
-            new Vector3(m00, m10, m20).magnitude,
-            new Vector3(m01, m11, m21).magnitude,
-            new Vector3(m02, m12, m22).magnitude
-        );
+
+    //Devuelve la escala real del objeto. Esto es en caso de que se apliquen rotaciones y otros cálculos, donde se pierde la escala
+    public Vector3 lossyScale => new(GetColumn(0).magnitude, GetColumn(1).magnitude, GetColumn(2).magnitude);
 
     //
     // Resumen:
@@ -212,6 +182,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
             return true;
         }
     }
+
     //
     // Resumen:
     //     The determinant of the matrix. (Read Only)
@@ -219,20 +190,10 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     {
         get
         {
-            return m03 * m12 * m21 * m30 - m02 * m13 * m21 * m30 -
-                m03 * m11 * m22 * m30 + m01 * m13 * m22 * m30 +
-                m02 * m11 * m23 * m30 - m01 * m12 * m23 * m30 -
-                m03 * m12 * m20 * m31 + m02 * m13 * m20 * m31 +
-                m03 * m10 * m22 * m31 - m00 * m13 * m22 * m31 -
-                m02 * m10 * m23 * m31 + m00 * m12 * m23 * m31 +
-                m03 * m11 * m20 * m32 - m01 * m13 * m20 * m32 -
-                m03 * m10 * m21 * m32 + m00 * m13 * m21 * m32 +
-                m01 * m10 * m23 * m32 - m00 * m11 * m23 * m32 -
-                m02 * m11 * m20 * m33 + m01 * m12 * m20 * m33 +
-                m02 * m10 * m21 * m33 - m00 * m12 * m21 * m33 -
-                m01 * m10 * m22 * m33 + m00 * m11 * m22 * m33;
+            return Determinant(this);
         }
     }
+
     //
     // Resumen:
     //     Returns the transpose of this matrix (Read Only).
@@ -240,12 +201,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     {
         get
         {
-            return new MyMatrix4x4(
-                new Vector4(m00, m10, m20, m30),
-                new Vector4(m01, m11, m21, m31),
-                new Vector4(m02, m12, m22, m32),
-                new Vector4(m03, m13, m23, m33)
-            );
+            return Transpose(this);
         }
     }
 
@@ -256,75 +212,129 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     {
         get
         {
-            // The inverse of a matrix is such that if multiplied by the original it would result in the identity matrix.   
-            // obtained using https://euclideanspace.com/maths/algebra/matrix/functions/inverse/index.htm
-
-            float newM00 = m12 * m23 * m31 - m13 * m22 * m31 + m13 * m21 * m32 - m11 * m23 * m32 - m12 * m21 * m33 + m11 * m22 * m33;
-            float newM01 = m03 * m22 * m31 - m02 * m23 * m31 - m03 * m21 * m32 + m01 * m23 * m32 + m02 * m21 * m33 - m01 * m22 * m33;
-            float newM02 = m02 * m13 * m31 - m03 * m12 * m31 + m03 * m11 * m32 - m01 * m13 * m32 - m02 * m11 * m33 + m01 * m12 * m33;
-            float newM03 = m03 * m12 * m21 - m02 * m13 * m21 - m03 * m11 * m22 + m01 * m13 * m22 + m02 * m11 * m23 - m01 * m12 * m23;
-            float newM10 = m13 * m22 * m30 - m12 * m23 * m30 - m13 * m20 * m32 + m10 * m23 * m32 + m12 * m20 * m33 - m10 * m22 * m33;
-            float newM11 = m02 * m23 * m30 - m03 * m22 * m30 + m03 * m20 * m32 - m00 * m23 * m32 - m02 * m20 * m33 + m00 * m22 * m33;
-            float newM12 = m03 * m12 * m30 - m02 * m13 * m30 - m03 * m10 * m32 + m00 * m13 * m32 + m02 * m10 * m33 - m00 * m12 * m33;
-            float newM13 = m02 * m13 * m20 - m03 * m12 * m20 + m03 * m10 * m22 - m00 * m13 * m22 - m02 * m10 * m23 + m00 * m12 * m23;
-            float newM20 = m11 * m23 * m30 - m13 * m21 * m30 + m13 * m20 * m31 - m10 * m23 * m31 - m11 * m20 * m33 + m10 * m21 * m33;
-            float newM21 = m03 * m21 * m30 - m01 * m23 * m30 - m03 * m20 * m31 + m00 * m23 * m31 + m01 * m20 * m33 - m00 * m21 * m33;
-            float newM22 = m01 * m13 * m30 - m03 * m11 * m30 + m03 * m10 * m31 - m00 * m13 * m31 - m01 * m10 * m33 + m00 * m11 * m33;
-            float newM23 = m03 * m11 * m20 - m01 * m13 * m20 - m03 * m10 * m21 + m00 * m13 * m21 + m01 * m10 * m23 - m00 * m11 * m23;
-            float newM30 = m12 * m21 * m30 - m11 * m22 * m30 - m12 * m20 * m31 + m10 * m22 * m31 + m11 * m20 * m32 - m10 * m21 * m32;
-            float newM31 = m01 * m22 * m30 - m02 * m21 * m30 + m02 * m20 * m31 - m00 * m22 * m31 - m01 * m20 * m32 + m00 * m21 * m32;
-            float newM32 = m02 * m11 * m30 - m01 * m12 * m30 - m02 * m10 * m31 + m00 * m12 * m31 + m01 * m10 * m32 - m00 * m11 * m32;
-            float newM33 = m01 * m12 * m20 - m02 * m11 * m20 + m02 * m10 * m21 - m00 * m12 * m21 - m01 * m10 * m22 + m00 * m11 * m22;
-
-            return new MyMatrix4x4(
-                new Vector4(newM00, newM01, newM02, newM03),
-                new Vector4(newM10, newM11, newM12, newM13),
-                new Vector4(newM20, newM21, newM22, newM23),
-                new Vector4(newM30, newM31, newM32, newM33)
-            );
+            return Inverse(this);
         }
     }
 
     public static float Determinant(MyMatrix4x4 m)
     {
-        return m.determinant;
+        float a = m.m00;
+        float b = m.m01;
+        float c = m.m02;
+        float d = m.m03;
+
+        //m00 m01 m02 m03
+        //m10 m11 m12 m13
+        //m20 m21 m22 m23
+        //m30 m31 m32 m33
+
+        // aDeterminant 
+        // m11 m12 m13
+        // m21 m22 m23
+        // m31 m32 m33
+        float aDeterminant = m.m11 * (m.m22 * m.m33 - m.m23 * m.m32) - m.m12 * (m.m21 * m.m33 - m.m23 * m.m31) + m.m13 * (m.m21 * m.m32 - m.m22 * m.m31);
+
+        // bDeterminant 
+        // m10 m12 m13
+        // m20 m22 m23
+        // m30 m32 m33
+        float bDeterminant = m.m10 * (m.m22 * m.m33 - m.m23 * m.m32) - m.m12 * (m.m20 * m.m33 - m.m23 * m.m30) + m.m13 * (m.m20 * m.m32 - m.m22 * m.m30);
+
+        // cDeterminant 
+        // m10 m11 m13
+        // m20 m21 m23
+        // m30 m31 m33
+        float cDeterminant = m.m10 * (m.m21 * m.m33 - m.m23 * m.m31) - m.m11 * (m.m20 * m.m33 - m.m23 * m.m30) + m.m13 * (m.m20 * m.m31 - m.m21 * m.m30);
+
+        // dDeterminant 
+        // m10 m11 m12
+        // m20 m21 m22
+        // m30 m31 m32
+        float dDeterminant = m.m10 * (m.m21 * m.m32 - m.m22 * m.m31) - m.m11 * (m.m20 * m.m32 - m.m22 * m.m30) + m.m12 * (m.m20 * m.m31 - m.m21 * m.m30);
+
+        return a * aDeterminant - b * bDeterminant + c * cDeterminant - d * dDeterminant;
     }
 
-    public static MyMatrix4x4 Inverse(MyMatrix4x4 m)
+    public static MyMatrix4x4 Inverse(MyMatrix4x4 m) //Devuelve la inversa de la matriz ingresada
     {
-        return m.inverse;
+        float detA = Determinant(m); //Debe tener determinante, de otra forma, no es inversible
+
+        if (detA == 0)
+            return zero;
+
+        MyMatrix4x4 aux = new MyMatrix4x4()
+        {
+            // sacar el determinante de cada una de esas posiciones
+            //------0--------- 
+            m00 = m.m11 * m.m22 * m.m33 + m.m12 * m.m23 * m.m31 + m.m13 * m.m21 * m.m32 - m.m11 * m.m23 * m.m32 - m.m12 * m.m21 * m.m33 - m.m13 * m.m22 * m.m31,
+            m01 = m.m01 * m.m23 * m.m32 + m.m02 * m.m21 * m.m33 + m.m03 * m.m22 * m.m31 - m.m01 * m.m22 * m.m33 - m.m02 * m.m23 * m.m31 - m.m03 * m.m21 * m.m32,
+            m02 = m.m01 * m.m12 * m.m33 + m.m02 * m.m13 * m.m32 + m.m03 * m.m11 * m.m32 - m.m01 * m.m13 * m.m32 - m.m02 * m.m11 * m.m33 - m.m03 * m.m12 * m.m31,
+            m03 = m.m01 * m.m13 * m.m22 + m.m02 * m.m11 * m.m23 + m.m03 * m.m12 * m.m21 - m.m01 * m.m12 * m.m23 - m.m02 * m.m13 * m.m21 - m.m03 * m.m11 * m.m22,
+            //-------1--------         
+            m10 = m.m10 * m.m23 * m.m32 + m.m12 * m.m20 * m.m33 + m.m13 * m.m22 * m.m30 - m.m10 * m.m22 * m.m33 - m.m12 * m.m23 * m.m30 - m.m13 * m.m20 * m.m32,
+            m11 = m.m00 * m.m22 * m.m33 + m.m02 * m.m23 * m.m30 + m.m03 * m.m20 * m.m32 - m.m00 * m.m23 * m.m32 - m.m02 * m.m20 * m.m33 - m.m03 * m.m22 * m.m30,
+            m12 = m.m00 * m.m13 * m.m32 + m.m02 * m.m10 * m.m33 + m.m03 * m.m12 * m.m30 - m.m00 * m.m12 * m.m33 - m.m02 * m.m13 * m.m30 - m.m03 * m.m10 * m.m32,
+            m13 = m.m00 * m.m12 * m.m23 + m.m02 * m.m13 * m.m20 + m.m03 * m.m10 * m.m22 - m.m00 * m.m13 * m.m22 - m.m02 * m.m10 * m.m23 - m.m03 * m.m12 * m.m20,
+            //-------2--------         
+            m20 = m.m10 * m.m21 * m.m33 + m.m11 * m.m23 * m.m30 + m.m13 * m.m20 * m.m31 - m.m10 * m.m23 * m.m31 - m.m11 * m.m20 * m.m33 - m.m13 * m.m31 * m.m30,
+            m21 = m.m00 * m.m23 * m.m31 + m.m01 * m.m20 * m.m33 + m.m03 * m.m21 * m.m30 - m.m00 * m.m21 * m.m33 - m.m01 * m.m23 * m.m30 - m.m03 * m.m20 * m.m31,
+            m22 = m.m00 * m.m11 * m.m33 + m.m01 * m.m13 * m.m31 + m.m03 * m.m10 * m.m31 - m.m00 * m.m13 * m.m31 - m.m01 * m.m10 * m.m33 - m.m03 * m.m11 * m.m30,
+            m23 = m.m00 * m.m13 * m.m21 + m.m01 * m.m10 * m.m23 + m.m03 * m.m11 * m.m31 - m.m00 * m.m11 * m.m23 - m.m01 * m.m13 * m.m20 - m.m03 * m.m10 * m.m21,
+            //------3---------         
+            m30 = m.m10 * m.m22 * m.m31 + m.m11 * m.m20 * m.m32 + m.m12 * m.m21 * m.m30 - m.m00 * m.m21 * m.m32 - m.m11 * m.m22 * m.m30 - m.m12 * m.m20 * m.m31,
+            m31 = m.m00 * m.m21 * m.m32 + m.m01 * m.m22 * m.m30 + m.m02 * m.m20 * m.m31 - m.m00 * m.m22 * m.m31 - m.m01 * m.m20 * m.m32 - m.m02 * m.m21 * m.m30,
+            m32 = m.m00 * m.m12 * m.m31 + m.m01 * m.m10 * m.m32 + m.m02 * m.m11 * m.m30 - m.m00 * m.m11 * m.m32 - m.m01 * m.m12 * m.m30 - m.m02 * m.m10 * m.m31,
+            m33 = m.m00 * m.m11 * m.m22 + m.m01 * m.m12 * m.m20 + m.m02 * m.m10 * m.m21 - m.m00 * m.m12 * m.m21 - m.m01 * m.m10 * m.m22 - m.m02 * m.m11 * m.m20
+        };
+
+        MyMatrix4x4 ret = new MyMatrix4x4()
+        {
+            m00 = aux.m00 / detA,
+            m01 = aux.m01 / detA,
+            m02 = aux.m02 / detA,
+            m03 = aux.m03 / detA,
+            m10 = aux.m10 / detA,
+            m11 = aux.m11 / detA,
+            m12 = aux.m12 / detA,
+            m13 = aux.m13 / detA,
+            m20 = aux.m20 / detA,
+            m21 = aux.m21 / detA,
+            m22 = aux.m22 / detA,
+            m23 = aux.m23 / detA,
+            m30 = aux.m30 / detA,
+            m31 = aux.m31 / detA,
+            m32 = aux.m32 / detA,
+            m33 = aux.m33 / detA
+
+        };
+        return ret;
     }
 
-    //
-    // Resumen:
-    //     Create a "look at" matrix.
-    //
-    // Par?metros:
-    //   from:
-    //     The source point.
-    //
-    //   to:
-    //     The target point.
-    //
-    //   up:
-    //     The vector describing the up direction (typically Vector3.up).
-    //
-    // Devuelve:
-    //     The resulting transformation matrix.
-    public static MyMatrix4x4 LookAt(Vector3 from, Vector3 to, Vector3 up)
+    public static MyMatrix4x4 Transpose(MyMatrix4x4 m)//Espeja respecto de la diagonal principal
     {
-        return MyMatrix4x4.TRS(from, MyQuaternion.LookRotation(to - from, up), new Vector3(1f, 1f, 1f));
+        return new MyMatrix4x4()
+        {
+            m01 = m.m10,
+            m02 = m.m20,
+            m03 = m.m30,
+            m10 = m.m01,
+            m12 = m.m21,
+            m13 = m.m31,
+            m20 = m.m02,
+            m21 = m.m12,
+            m23 = m.m32,
+            m30 = m.m03,
+            m31 = m.m13,
+            m32 = m.m23,
+        };
     }
-    //
-    // Resumen:
-    //     Creates a rotation matrix.
-    //
-    // Par?metros:
-    //   q:
+
+    
+    //A partir de un quaternion arma la matriz de rotacion
+    //La matriz de rotacion es una matriz que aplica 3 rotaciones, una para cada eje (ya que se arma multiplicando la matriz de rotacion en x, y, z)
     public static MyMatrix4x4 Rotate(MyQuaternion q)
     {
-        // https://euclideanspace.com/maths/geometry/rotations/conversions/quaternionToMatrix/index.htm
-        // To get the rotation from the quaternion you use the equation q*p*conj(q) = Mp, where M is the matrix we want.
+        //Cuando multiplico cualquier vector por esta matriz me devuelve el vector rotado.
 
         return new MyMatrix4x4(
             new Vector4(
@@ -348,16 +358,10 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
             new Vector4(0, 0, 0, 1)
         );
     }
-    //
-    // Resumen:
-    //     Creates a scaling matrix.
-    //
-    // Par?metros:
-    //   vector:
+    
+    //Crea una matriz de escala que escala cualquier vector que se multiplique por ella
     public static MyMatrix4x4 Scale(Vector3 vector)
     {
-        // https://learnopengl.com/Getting-started/Transformations#:~:text=solving%20linear%20equations.-,Scaling,-When%20we%27re%20scaling
-
         return new MyMatrix4x4(
             new Vector4(vector.x, 0, 0, 0),
             new Vector4(0, vector.y, 0, 0),
@@ -365,12 +369,8 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
             new Vector4(0, 0, 0, 1)
         );
     }
-    //
-    // Resumen:
-    //     Creates a translation matrix.
-    //
-    // Par?metros:
-    //   vector:
+
+    //Crea una matriz de traslacion que translada cualquier vector que se multiplique por ella
     public static MyMatrix4x4 Translate(Vector3 vector)
     {
         return new MyMatrix4x4(
@@ -381,23 +381,9 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         );
     }
 
-    public static MyMatrix4x4 Transpose(MyMatrix4x4 m)
+    public static MyMatrix4x4 TRS(Vector3 pos, MyQuaternion q, Vector3 s) //Devuelve la matriz TRS de los valores ingresados
     {
-        return m.transpose;
-    }
-    //
-    // Resumen:
-    //     Creates a translation, rotation and scaling matrix.
-    //
-    // Par?metros:
-    //   pos:
-    //
-    //   q:
-    //
-    //   s:
-    public static MyMatrix4x4 TRS(Vector3 pos, MyQuaternion q, Vector3 s)
-    {
-        return Translate(pos) * Rotate(q) * Scale(s);
+        return (Translate(pos) * Rotate(q) * Scale(s));
     }
 
     public bool Equals(MyMatrix4x4 other)
@@ -419,219 +405,94 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
                Mathf.Approximately(m32, other.m32) &&
                Mathf.Approximately(m33, other.m33);
     }
-    //
-    // Resumen:
-    //     Get a column of the matrix.
-    //
-    // Par?metros:
-    //   index:
-    public Vector4 GetColumn(int index)
+
+    public Vector4 GetColumn(int i) //Devuelve la columna
     {
-        switch (index)
-        {
-            case 0:
-                return new Vector4(m00, m10, m20, m30);
-            case 1:
-                return new Vector4(m01, m11, m21, m31);
-            case 2:
-                return new Vector4(m02, m12, m22, m32);
-            case 3:
-                return new Vector4(m03, m13, m23, m33);
-            default:
-                throw new IndexOutOfRangeException("Not in range!");
-        }
+        return new Vector4(this[0, i], this[1, i], this[2, i], this[3, i]);
     }
 
-    //
-    // Resumen:
-    //     Get position vector from the matrix.
+    //Obtiene el vector posicion en la matriz
     public Vector3 GetPosition()
     {
         return new Vector3(m03, m13, m23);
     }
-    //
-    // Resumen:
-    //     Returns a row of the matrix.
-    //
-    // Par?metros:
-    //   index:
-    public Vector4 GetRow(int index)
-    {
-        switch (index)
-        {
-            case 0:
-                return new Vector4(m00, m01, m02, m03);
-            case 1:
-                return new Vector4(m10, m11, m12, m13);
-            case 2:
-                return new Vector4(m20, m21, m22, m23);
-            case 3:
-                return new Vector4(m30, m31, m32, m33);
-            default:
-                throw new IndexOutOfRangeException("Not in range!");
-        }
-    }
-    //
-    // Resumen:
-    //     Transforms a position by this matrix (generic).
-    //
-    // Par?metros:
-    //   point:
-    public Vector3 MultiplyPoint(Vector3 point)
-    {
-        Vector3 vector3 = MultiplyPoint3x4(point);
 
-        // TODO why is this being calculated? third row should be all zero
-        float num = 1f / ((float)((double)this.m30 * (double)point.x + (double)this.m31 * (double)point.y + (double)this.m32 * (double)point.z) + this.m33);
-        vector3.x *= num;
-        vector3.y *= num;
-        vector3.z *= num;
-
-        return vector3;
-    }
-    //
-    // Resumen:
-    //     Transforms a position by this matrix (fast).
-    //
-    // Par?metros:
-    //   point:
-    public Vector3 MultiplyPoint3x4(Vector3 point)
+    public Vector4 GetRow(int index) //Devuelve la fila
     {
-        return new Vector3(
-            (this.m00 * point.x + this.m01 * point.y + this.m02 * point.z) + this.m03,
-            (this.m10 * point.x + this.m11 * point.y + this.m12 * point.z) + this.m13,
-            (this.m20 * point.x + this.m21 * point.y + this.m22 * point.z) + this.m23
-        );
-    }
-    //
-    // Resumen:
-    //     Transforms a direction by this matrix.
-    //
-    // Par?metros:
-    //   vector:
-    public Vector3 MultiplyVector(Vector3 vector)
-    {
-        // this doesnt change position as it is a direction
-
-        return new Vector3(
-            (this.m00 * vector.x + this.m01 * vector.y + this.m02 * vector.z),
-            (this.m10 * vector.x + this.m11 * vector.y + this.m12 * vector.z),
-            (this.m20 * vector.x + this.m21 * vector.y + this.m22 * vector.z)
-        );
-    }
-    //
-    // Resumen:
-    //     Sets a column of the matrix.
-    //
-    // Par?metros:
-    //   index:
-    //
-    //   column:
-    public void SetColumn(int index, Vector4 column)
-    {
-        switch (index)
+        return index switch
         {
-            case 0:
-                m00 = column.x;
-                m10 = column.y;
-                m20 = column.z;
-                m30 = column.w;
-                break;
-            case 1:
-                m01 = column.x;
-                m11 = column.y;
-                m21 = column.z;
-                m31 = column.w;
-                break;
-            case 2:
-                m02 = column.x;
-                m12 = column.y;
-                m22 = column.z;
-                m32 = column.w;
-                break;
-            case 3:
-                m03 = column.x;
-                m13 = column.y;
-                m23 = column.z;
-                m33 = column.w;
-                break;
-            default:
-                throw new IndexOutOfRangeException("Not in range!");
-        }
+            0 => new Vector4(m00, m01, m02, m03),
+            1 => new Vector4(m10, m11, m12, m13),
+            2 => new Vector4(m20, m21, m22, m23),
+            3 => new Vector4(m30, m31, m32, m33),
+            _ => throw new IndexOutOfRangeException("Index out of Range!")
+        };
     }
-    //
-    // Resumen:
-    //     Sets a row of the matrix.
-    //
-    // Par?metros:
-    //   index:
-    //
-    //   row:
-    public void SetRow(int index, Vector4 row)
+    
+
+    public Vector3 MultiplyPoint(Vector3 p)
     {
-        switch (index)
-        {
-            case 0:
-                m00 = row.x;
-                m01 = row.y;
-                m02 = row.z;
-                m03 = row.w;
-                break;
-            case 1:
-                m10 = row.x;
-                m11 = row.y;
-                m12 = row.z;
-                m13 = row.w;
-                break;
-            case 2:
-                m20 = row.x;
-                m21 = row.y;
-                m22 = row.z;
-                m23 = row.w;
-                break;
-            case 3:
-                m30 = row.x;
-                m31 = row.y;
-                m32 = row.z;
-                m33 = row.w;
-                break;
-            default:
-                throw new IndexOutOfRangeException("Not in range!");
-        }
+        Vector3 v3;
+
+        v3.x = (float)((double)m00 * (double)p.x + (double)m01 * (double)p.y + (double)m02 * (double)p.z) + m03;
+        v3.y = (float)((double)m10 * (double)p.x + (double)m11 * (double)p.y + (double)m12 * (double)p.z) + m13;
+        v3.z = (float)((double)m20 * (double)p.x + (double)m21 * (double)p.y + (double)m22 * (double)p.z) + m23;
+
+        //Creo un valor scalar
+        float scalar = 1f / ((float)((double)m30 * (double)p.x + (double)m31 * (double)p.y + (double)m32 * (double)p.z) + m33);
+        v3.x *= scalar;
+        v3.y *= scalar;
+        v3.z *= scalar;
+
+        return v3;
     }
-    //
-    // Resumen:
-    //     Sets this matrix to a translation, rotation and scaling matrix.
-    //
-    // Par?metros:
-    //   pos:
-    //
-    //   q:
-    //
-    //   s:
+
+    public Vector3 MultiplyPoint3x4(Vector3 p) //Multiplica las componentes del vector en la matriz (X, Y y Z pero no ignoro W)
+    {
+        Vector3 v3;
+        v3.x = (float)((double)m00 * (double)p.x + (double)m01 * (double)p.y + (double)m02 * (double)p.z) + m03;
+        v3.y = (float)((double)m10 * (double)p.x + (double)m11 * (double)p.y + (double)m12 * (double)p.z) + m13;
+        v3.z = (float)((double)m20 * (double)p.x + (double)m21 * (double)p.y + (double)m22 * (double)p.z) + m23;
+        return v3;
+    }
+
+    public Vector3 MultiplyVector(Vector3 v) //Multiplica las componentes del vector en la matriz (pero solo en X, Y y Z; ignorando W)
+    {
+        Vector3 v3; //No se tienen en cuenta ni la 4ta fila ni la 4ta columna
+        v3.x = (float)((double)m00 * (double)v.x + (double)m01 * (double)v.y + (double)m02 * (double)v.z);
+        v3.y = (float)((double)m10 * (double)v.x + (double)m11 * (double)v.y + (double)m12 * (double)v.z);
+        v3.z = (float)((double)m20 * (double)v.x + (double)m21 * (double)v.y + (double)m22 * (double)v.z);
+
+        return v3;
+    }
+
+    public void SetColumn(int index, Vector4 col) //Setea la columna
+    {
+        this[0, index] = col.x;
+        this[1, index] = col.y;
+        this[2, index] = col.z;
+        this[3, index] = col.w;
+    }
+
+    public void SetRow(int index, Vector4 row) //Setea la fila
+    {
+        this[index, 0] = row.x;
+        this[index, 1] = row.y;
+        this[index, 2] = row.z;
+        this[index, 3] = row.w;
+    }
+
     public void SetTRS(Vector3 pos, MyQuaternion q, Vector3 s)
     {
-        MyMatrix4x4 trsMatrix = TRS(pos, q, s);
+        MyMatrix4x4 trs = TRS(pos, q, s);
 
         for (int i = 0; i < 4; i++)
         {
-            for (int j = 0; j < 4; j++)
-            {
-                this[i, j] = trsMatrix[i, j];
-            }
+            SetColumn(i, trs.GetColumn(i));
         }
     }
 
-    //
-    // Resumen:
-    //     Returns a formatted string for this matrix.
-    //
-    // Par?metros:
-    //   format:
-    //     A numeric format string.
-    //
-    //   formatProvider:
-    //     An object that specifies culture-specific formatting.
+
     public string ToString(string format, IFormatProvider formatProvider)
     {
         return $"{m00} {m01} {m02} {m03}\n {m10} {m11} {m12} {m13}\n {m20} {m21} {m22} {m23}\n {m30} {m31} {m32} {m33}";
@@ -639,14 +500,31 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
 
     public bool ValidTRS()
     {
-        // A TRS is valid if the 3x3 top left matrix is an orthogonal matrix, 
-        // That is it is a square matrix and it's columns are orthonormal vectors.
+        //La ultima fila de la matriz tiene que ser (0, 0, 0, 1)
+        if (m30 != 0 || m31 != 0 || m32 != 0 || m33 != 1)
+        {
+            return false;
+        }
 
-        // To check this we can use the dot product between the columns.
+        // Rotation: The upper-left 3x3 submatrix should be an orthogonal matrix
+        Vector3 column0 = new Vector3(m00, m10, m20); //Suma tri tiene que ser ortogonal y que pueda ser euler
+        Vector3 column1 = new Vector3(m01, m11, m21);
+        Vector3 column2 = new Vector3(m02, m12, m22);
 
-        return Vector3.Dot(new Vector3(m00, m10, m20), new Vector3(m01, m11, m21)) <= float.Epsilon &&
-               Vector3.Dot(new Vector3(m01, m11, m21), new Vector3(m02, m12, m22)) <= float.Epsilon &&
-               Vector3.Dot(new Vector3(m00, m10, m20), new Vector3(m02, m12, m22)) <= float.Epsilon;
+        if (!Mathf.Approximately(Vector3.Dot(column0, column1), 0) ||
+            !Mathf.Approximately(Vector3.Dot(column0, column2), 0) ||
+            !Mathf.Approximately(Vector3.Dot(column1, column2), 0))
+        {
+            return false;
+        }
+
+        // Scale: The scale factors should be positive
+        if (m00 < 0 || m11 < 0 || m22 < 0)
+        {
+            return false;
+        }
+
+        return true;
     }
 
     public static MyMatrix4x4 operator *(MyMatrix4x4 lhs, MyMatrix4x4 rhs)
