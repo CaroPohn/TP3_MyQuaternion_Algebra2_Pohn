@@ -9,17 +9,17 @@ public class MyQuaternion : MonoBehaviour
 
     public float x;
     public float y;
-    public float z;
-    public float w;
+    public float z; //x, y, z son las partes imaginarias
+    public float w; //parte real
 
-    private static readonly MyQuaternion identityQuaternion = new MyQuaternion(0f, 0f, 0f, 1f); //Quaternion de identidad, no rotacion
+    private static readonly MyQuaternion identityQuaternion = new MyQuaternion(0f, 0f, 0f, 1f); //Quaternion de identidad, no rotacion. Rotacion alineada con los ejes
 
     public const float kEpsilon = 1E-06f;
 
     #endregion
 
     #region ACCESORS
-    public float this[int index]
+    public float this[int index] //Obtener y setear valores al quat a partir de un index
     {
         get
         {
@@ -78,17 +78,75 @@ public class MyQuaternion : MonoBehaviour
             return identityQuaternion;
         }
     }
+
+    public float magnitude
+    {
+        get
+        {
+            return Mathf.Sqrt(x * x + y * y + z * z + w * w);
+        }
+    }
     
     public Vector3 eulerAngles //Returns or sets the euler angle representation of the rotation in degrees.
     {
         get
         {
-            throw new NotImplementedException();
+            float sqW = w * w;
+            float sqX = x * x;
+            float sqY = y * y;
+            float sqZ = z * z;
+
+            float unit = sqX + sqY + sqZ + sqW; //Chequea si el quat esta normalizado (da 1 si si, sino lo corrige)
+
+            float test = x * w - y * z; //Obtiene el valor de x
+
+            Vector3 anglesVector = new Vector3();
+
+            if (test > 0.4999f * unit) //Singularidad en polo norte (cuando x se acerca a +90°)
+            {
+                anglesVector.y = 2f * Mathf.Atan2(y, x); //Calcula los valores para que los ejes no se superpongan
+                anglesVector.x = Mathf.PI / 2;
+                anglesVector.z = 0;
+
+                return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
+            }
+            if (test < -0.4999f * unit) //Singularidad en polo sur (cuando x se acerca a -90°)
+            {
+                anglesVector.y = -2f * Mathf.Atan2(y, x);
+                anglesVector.x = -Mathf.PI / 2;
+                anglesVector.z = 0;
+
+                return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
+            }
+
+            MyQuaternion orderQuat = new MyQuaternion(w, z, x, y);
+
+            anglesVector.y = (float)Math.Atan2(2f * orderQuat.x * orderQuat.w + 2f * orderQuat.y * orderQuat.z, 1 - 2f * (orderQuat.z * orderQuat.z + orderQuat.y * orderQuat.y));
+            anglesVector.x = (float)Math.Asin(2f * (orderQuat.x * orderQuat.z - orderQuat.w * orderQuat.y));
+            anglesVector.z = (float)Math.Atan2(2f * orderQuat.x * orderQuat.y + 2f * orderQuat.z * orderQuat.w, 1 - 2f * (orderQuat.y * orderQuat.y + orderQuat.z * orderQuat.z));
+
+            return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
         }
 
         set
         {
-            throw new NotImplementedException();
+            //Cada coordenada de los Euler representa en ese eje que tan rotado esta el objeto 
+
+            float xInRad = Mathf.Deg2Rad * value.x * 0.5f; //Lo paso a radianes para poder trabajar con seno y coseno
+            float yInRad = Mathf.Deg2Rad * value.y * 0.5f;
+            float zInRad = Mathf.Deg2Rad * value.z * 0.5f;
+
+            //Teniendo en cuenta la fórmula para rotar en 3D Cos(a/2) + iSin(a/2) + jSin(a/2) + kSin(a/2) calcula la rotacion en cada uno de los ejes.
+            MyQuaternion qx = new MyQuaternion(Mathf.Sin(xInRad), 0, 0, Mathf.Cos(xInRad));
+            MyQuaternion qy = new MyQuaternion(0, Mathf.Sin(yInRad), 0, Mathf.Cos(yInRad));
+            MyQuaternion qz = new MyQuaternion(0, 0, Mathf.Sin(zInRad), Mathf.Cos(zInRad));
+
+            MyQuaternion result = qy * qx * qz; //Hago la multiplicación para aplicar la rotación. Es en ese orden por como maneja el orden unity.
+
+            this.x = result.x;
+            this.y = result.y;
+            this.z = result.z;
+            this.w = result.w;
         }
     }
 
@@ -173,14 +231,88 @@ public class MyQuaternion : MonoBehaviour
         return IsEqualUsingDot(num) ? 0f : (Mathf.Acos(num) * 2f * 57.29578f);
     }
 
-    public static MyQuaternion Euler(float x, float y, float z)
+    private static float NormalizeAngle(float angle)
     {
-        throw new NotImplementedException();
+        while (angle > 360)
+            angle -= 360;
+
+        while (angle < 0f)
+            angle += 360;
+
+        return angle;
     }
 
-    public static MyQuaternion Euler(Vector3 euler)
+    private static Vector3 NormalizeAngles(Vector3 angles)
     {
-        throw new NotImplementedException();
+        Vector3 normalizedAngles = new Vector3();
+
+        normalizedAngles.x = NormalizeAngle(angles.x);
+        normalizedAngles.y = NormalizeAngle(angles.y);
+        normalizedAngles.z = NormalizeAngle(angles.z);
+
+        return normalizedAngles;
+    }
+
+    public static Vector3 QuatToEulerRad(MyQuaternion q1)
+    {
+        float sqW = q1.w * q1.w;
+        float sqX = q1.x * q1.x;
+        float sqY = q1.y * q1.y;
+        float sqZ = q1.z * q1.z;
+
+        float unit = sqX + sqY + sqZ + sqW; //Chequea si el quat esta normalizado (da 1 si si, sino lo corrige)
+
+        float test = q1.x * q1.w - q1.y * q1.z; //Obtiene el valor de x
+
+        Vector3 anglesVector = new Vector3();
+
+        if (test > 0.4999f * unit) //Singularidad en polo norte (cuando x se acerca a +90°)
+        {
+            anglesVector.y = 2f * Mathf.Atan2(q1.y, q1.x); //Calcula los valores para que los ejes no se superpongan
+            anglesVector.x = Mathf.PI / 2;
+            anglesVector.z = 0;
+
+            return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
+        }
+        if (test < -0.4999f * unit) //Singularidad en polo sur (cuando x se acerca a -90°)
+        {
+            anglesVector.y = -2f * Mathf.Atan2(q1.y, q1.x);
+            anglesVector.x = -Mathf.PI / 2;
+            anglesVector.z = 0;
+
+            return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
+        }
+
+        MyQuaternion orderQuat = new MyQuaternion(q1.w, q1.z, q1.x, q1.y);
+
+        anglesVector.y = (float)Math.Atan2(2f * orderQuat.x * orderQuat.w + 2f * orderQuat.y * orderQuat.z, 1 - 2f * (orderQuat.z * orderQuat.z + orderQuat.y * orderQuat.y));
+        anglesVector.x = (float)Math.Asin(2f * (orderQuat.x * orderQuat.z - orderQuat.w * orderQuat.y));
+        anglesVector.z = (float)Math.Atan2(2f * orderQuat.x * orderQuat.y + 2f * orderQuat.z * orderQuat.w, 1 - 2f * (orderQuat.y * orderQuat.y + orderQuat.z * orderQuat.z));
+
+        return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
+    }
+
+    public static MyQuaternion FromEulerToQuat(float x, float y, float z)
+    {
+        //Cada coordenada de los Euler representa en ese eje que tan rotado esta el objeto 
+
+        float xInRad = Mathf.Deg2Rad * x * 0.5f; //Lo paso a radianes para poder trabajar con seno y coseno
+        float yInRad = Mathf.Deg2Rad * y * 0.5f;
+        float zInRad = Mathf.Deg2Rad * z * 0.5f;
+
+        //Teniendo en cuenta la fórmula para rotar en 3D Cos(a/2) + iSin(a/2) + jSin(a/2) + kSin(a/2) calcula la rotacion en cada uno de los ejes.
+        MyQuaternion qx = new MyQuaternion(Mathf.Sin(xInRad), 0, 0, Mathf.Cos(xInRad));
+        MyQuaternion qy = new MyQuaternion(0, Mathf.Sin(yInRad), 0, Mathf.Cos(yInRad));
+        MyQuaternion qz = new MyQuaternion(0, 0, Mathf.Sin(zInRad), Mathf.Cos(zInRad));
+
+        MyQuaternion result = qy * qx * qz; //Hago la multiplicación para aplicar la rotación. Es en ese orden por como maneja el orden unity.
+
+        return new MyQuaternion(result.x, result.y, result.z, result.w);
+    }
+
+    public static MyQuaternion FromEulerToQuat(Vector3 euler)
+    {
+        return FromEulerToQuat(euler.x, euler.y, euler.z);
     }
 
     public void ToAngleAxis(out float angle, out Vector3 axis)
