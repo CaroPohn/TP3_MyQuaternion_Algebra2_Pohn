@@ -133,6 +133,7 @@ GameObject:
   m_Component:
   - component: {fileID: 367627190}
   - component: {fileID: 367627189}
+  - component: {fileID: 367627191}
   m_Layer: 0
   m_Name: EjerciciosDll
   m_TagString: Untagged
@@ -153,7 +154,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ejercicio: 1
-  angle: 2.96
+  angle: 1
 --- !u!4 &367627190
 Transform:
   m_ObjectHideFlags: 0
@@ -169,6 +170,20 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &367627191
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 367627188}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cee9f6ff2841826479b0da4a4c0d9526, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  exerciseNumber: 2
+  Angle: 1
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0
