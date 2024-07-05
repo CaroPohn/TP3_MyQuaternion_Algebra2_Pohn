@@ -105,7 +105,6 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
 
     public float this[int row, int column]
     {
-
         get
         {
             return this[row + column * 4];
@@ -132,7 +131,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
        new Vector4(0, 0, 0, 1)
    );
 
-    //Obtiene la rotacion en una matriz y la transforma en un quaternion de rotacion
+    //Obtiene la rotacion en una matriz y lo devuelve como un quaternion de rotacion
     public MyQuaternion rotation
     {
         get
@@ -140,15 +139,17 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
             MyMatrix4x4 m = this;
             MyQuaternion q = MyQuaternion.identity;
 
-            //Toma la diagonal (m00, m11, m22) que es la escala
+            //Toma la diagonal (m00, m11, m22) que es la escala y en base a eso aplica en cada uno de los ejes su respectiva escala
+            //Toma en cuenta la escala para poder ajustar bien los valores ya que la escala y rotacion comparten valores
+
             q.w = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] + m[1, 1] + m[2, 2])) / 2; //Devuelve la raiz de un número que debe ser al menos 0.
-            q.x = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] - m[1, 1] - m[2, 2])) / 2; 
+            q.x = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] - m[1, 1] - m[2, 2])) / 2;
             q.y = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] + m[1, 1] - m[2, 2])) / 2;
             q.z = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] - m[1, 1] + m[2, 2])) / 2;
 
-            q.x = Mathf.Sign(q.x * (m[2, 1] - m[1, 2]));
-            q.y = Mathf.Sign(q.y * (m[0, 2] - m[2, 0])); //Son los valores de la matriz que se van a modificar
-            q.z = Mathf.Sign(q.z * (m[1, 0] - m[0, 1]));
+            q.x *= Mathf.Sign(q.x * (m[2, 1] - m[1, 2]));
+            q.y *= Mathf.Sign(q.y * (m[0, 2] - m[2, 0])); //Tiene en cuenta los senos de cada eje para saber que signo deben tener
+            q.z *= Mathf.Sign(q.z * (m[1, 0] - m[0, 1]));
 
             return q;
         }
@@ -157,9 +158,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     //Devuelve la escala real del objeto. Esto es en caso de que se apliquen rotaciones y otros cálculos, donde se pierde la escala
     public Vector3 lossyScale => new(GetColumn(0).magnitude, GetColumn(1).magnitude, GetColumn(2).magnitude);
 
-    //
-    // Resumen:
-    //     Checks whether this is an identity matrix. (Read Only)
+    //Chequea si es matriz identidad
     public bool IsIdentity
     {
         get
@@ -183,9 +182,8 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         }
     }
 
-    //
-    // Resumen:
-    //     The determinant of the matrix. (Read Only)
+
+    //Devuelve el determinante de una matriz
     public float determinant
     {
         get
@@ -194,9 +192,8 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         }
     }
 
-    //
-    // Resumen:
-    //     Returns the transpose of this matrix (Read Only).
+
+    //Returns the transpose of this matrix
     public MyMatrix4x4 transpose
     {
         get
@@ -205,9 +202,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         }
     }
 
-    //
-    // Resumen:
-    //     The inverse of this matrix. (Read Only)
+    //The inverse of this matrix
     public MyMatrix4x4 inverse
     {
         get
@@ -255,6 +250,8 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         return a * aDeterminant - b * bDeterminant + c * cDeterminant - d * dDeterminant;
     }
 
+    //= la conjugada de la matriz / su determinante, es decir, la conjugada escalada por la inversa de la determinante
+    //Una matriz por su inversa devuelve la matriz identidad
     public static MyMatrix4x4 Inverse(MyMatrix4x4 m) //Devuelve la inversa de la matriz ingresada
     {
         float detA = Determinant(m); //Debe tener determinante, de otra forma, no es inversible
@@ -262,7 +259,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         if (detA == 0)
             return zero;
 
-        MyMatrix4x4 aux = new MyMatrix4x4()
+        MyMatrix4x4 aux = new MyMatrix4x4() //Conjugada
         {
             // sacar el determinante de cada una de esas posiciones
             //------0--------- 
@@ -329,7 +326,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         };
     }
 
-    
+
     //A partir de un quaternion arma la matriz de rotacion
     //La matriz de rotacion es una matriz que aplica 3 rotaciones, una para cada eje (ya que se arma multiplicando la matriz de rotacion en x, y, z)
     public static MyMatrix4x4 Rotate(MyQuaternion q)
@@ -358,7 +355,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
             new Vector4(0, 0, 0, 1)
         );
     }
-    
+
     //Crea una matriz de escala que escala cualquier vector que se multiplique por ella
     public static MyMatrix4x4 Scale(Vector3 vector)
     {
@@ -370,7 +367,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         );
     }
 
-    //Crea una matriz de traslacion que translada cualquier vector que se multiplique por ella
+    //Crea una matriz de traslacion que, teniendo en cuenta una escala 1, representa la posicion con respecto al origen
     public static MyMatrix4x4 Translate(Vector3 vector)
     {
         return new MyMatrix4x4(
@@ -383,7 +380,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
 
     public static MyMatrix4x4 TRS(Vector3 pos, MyQuaternion q, Vector3 s) //Devuelve la matriz TRS de los valores ingresados
     {
-        return (Translate(pos) * Rotate(q) * Scale(s));
+        return (Translate(pos) * Rotate(q) * Scale(s)); //Va en este orden porque no es conmutativo. Primero multiplica scale y rotate y luego lo traslada.
     }
 
     public bool Equals(MyMatrix4x4 other)
@@ -428,7 +425,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
             _ => throw new IndexOutOfRangeException("Index out of Range!")
         };
     }
-    
+
 
     public Vector3 MultiplyPoint(Vector3 p)
     {
@@ -498,33 +495,20 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         return $"{m00} {m01} {m02} {m03}\n {m10} {m11} {m12} {m13}\n {m20} {m21} {m22} {m23}\n {m30} {m31} {m32} {m33}";
     }
 
+
     public bool ValidTRS()
     {
-        //La ultima fila de la matriz tiene que ser (0, 0, 0, 1)
-        if (m30 != 0 || m31 != 0 || m32 != 0 || m33 != 1)
-        {
-            return false;
-        }
+        //Checks if every axis is orthogonal (aka everyone of them are perpendicular between them)
 
-        // Rotation: The upper-left 3x3 submatrix should be an orthogonal matrix
-        Vector3 column0 = new Vector3(m00, m10, m20); //Suma tri tiene que ser ortogonal y que pueda ser euler
+        float kEpsilon = 1E-25F;
+
+        Vector3 column0 = new Vector3(m00, m10, m20);
         Vector3 column1 = new Vector3(m01, m11, m21);
         Vector3 column2 = new Vector3(m02, m12, m22);
 
-        if (!Mathf.Approximately(Vector3.Dot(column0, column1), 0) ||
-            !Mathf.Approximately(Vector3.Dot(column0, column2), 0) ||
-            !Mathf.Approximately(Vector3.Dot(column1, column2), 0))
-        {
-            return false;
-        }
-
-        // Scale: The scale factors should be positive
-        if (m00 < 0 || m11 < 0 || m22 < 0)
-        {
-            return false;
-        }
-
-        return true;
+        return Vector3.Dot(column0, column1) <= kEpsilon &&
+               Vector3.Dot(column0, column2) <= kEpsilon &&
+               Vector3.Dot(column1, column2) <= kEpsilon;
     }
 
     public static MyMatrix4x4 operator *(MyMatrix4x4 lhs, MyMatrix4x4 rhs)
@@ -566,6 +550,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         return !(lhs == rhs);
     }
 
+    //Devuelve el vector4 modificado por cada una de las filas de la matriz. Es
     public static Vector4 operator *(MyMatrix4x4 lhs, Vector4 vector)
     {
         return new Vector4(

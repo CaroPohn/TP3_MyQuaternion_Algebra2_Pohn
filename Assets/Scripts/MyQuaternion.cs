@@ -260,6 +260,7 @@ public class MyQuaternion
         return result;
     }
 
+    //Me devuelve un quaternion de rotacion que me va a modificar la rotacion en un angulo determinado alrededor de un eje especifico
     public static MyQuaternion AngleAxis(float angle, Vector3 axis)
     {
         axis.Normalize();
@@ -340,54 +341,15 @@ public class MyQuaternion
 
     public static MyQuaternion LookRotation(Vector3 forward)
     {
-        Vector3 upwards = Vector3.up;
+        Vector3 upwards = Vector3.up; //Toma el del mundo
+
         forward.Normalize();
 
-        Vector3 vector2 = Vector3.Cross(upwards, forward).normalized;
-        Vector3 vector3 = Vector3.Cross(forward, vector2);
+        Vector3 newRight = Vector3.Cross(upwards, forward).normalized; //Calculo el right de acuerdo al forward
 
-        float diagonal = vector2.x + vector3.y + forward.z;
-        var quaternion = new MyQuaternion();
+        Vector3 newUp = Vector3.Cross(forward, newRight); //Calcula el up entre los dos ejes, para evitar posibles errores de escala
 
-        if (diagonal > 0f)
-        {
-            var cos = (float)Math.Sqrt(diagonal + 1f);
-            quaternion.w = cos * 0.5f;
-            cos = 0.5f / cos;
-            quaternion.x = (vector3.z - forward.y) * cos;
-            quaternion.y = (forward.x - vector2.z) * cos;
-            quaternion.z = (vector2.y - vector3.x) * cos;
-            return quaternion;
-        }
-        if ((vector2.x >= vector3.y) && (vector2.x >= forward.z)) //Si el primer valor de la matriz es mayor o igual a sus dos en diagonal
-        {
-            var cos1 = (float)Math.Sqrt(((1f + vector2.x) - vector3.y) - forward.z); //Cos
-            var num4 = 0.5f / cos1;
-            quaternion.x = 0.5f * cos1;
-            quaternion.y = (vector2.y + vector3.x) * num4;
-            quaternion.z = (vector2.z + forward.x) * num4;
-            quaternion.w = (vector3.z - forward.y) * num4;
-            return quaternion;
-        }
-        if (vector3.y > forward.z)
-        {
-            var num6 = (float)Math.Sqrt(((1f + vector3.y) - vector2.x) - forward.z);
-            var num3 = 0.5f / num6;
-            quaternion.x = (vector3.x + vector2.y) * num3;
-            quaternion.y = 0.5f * num6;
-            quaternion.z = (forward.y + vector3.z) * num3;
-            quaternion.w = (forward.x - vector2.z) * num3;
-            return quaternion;
-        }
-
-        var num5 = (float)Math.Sqrt(((1f + forward.z) - vector2.x) - vector3.y);
-        var num2 = 0.5f / num5;
-        quaternion.x = (forward.x + vector2.z) * num2;
-        quaternion.y = (forward.y + vector3.z) * num2;
-        quaternion.z = 0.5f * num5;
-        quaternion.w = (vector2.y - vector3.x) * num2;
-
-        return quaternion;
+        return LookRotation(forward, newUp);
     }
 
     public static float Dot(MyQuaternion a, MyQuaternion b)
@@ -411,10 +373,10 @@ public class MyQuaternion
 
     public static float Angle(MyQuaternion a, MyQuaternion b) //Devuelve el angulo en grados entre dos rotaciones. Va en un rango entre 0 y 180
     {
-        float dot = Dot(a, b);
+        float dot = Dot(a, b); //Desplazamiento entre las rotaciones
         float dotAbs = Math.Abs(dot);
 
-        if (IsEqualUsingDot(Dot(a, b)))
+        if (IsEqualUsingDot(Dot(a, b))) //el ángulo entre ambas rotaciones es 0 si ambos cuaterniones son iguales
         {
             return 0.0f;
         }
