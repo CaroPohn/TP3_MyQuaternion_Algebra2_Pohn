@@ -14,7 +14,7 @@ public class MyQuaternion
 
     private static readonly MyQuaternion identityQuaternion = new MyQuaternion(0f, 0f, 0f, 1f); //Quaternion de identidad, no rotacion. Rotacion alineada con los ejes
 
-    public const float kEpsilon = 1E-06f;
+    public const float kEpsilon = 1E-06f; // =0.000001, evita comparaciones de floats
 
     #endregion
 
@@ -188,24 +188,25 @@ public class MyQuaternion
         return new MyQuaternion(-rotation.x, -rotation.y, -rotation.z, rotation.w);
     }
 
+    //Interpola esfericamente entre un quat a y un quat b en un factor t. T esta limitado entre 0 y 1.
     public static MyQuaternion Slerp(MyQuaternion a, MyQuaternion b, float t)
     {
         return SlerpUnclamped(a, b, Mathf.Clamp01(t));
     }
 
-    // Spherically interpolates between a and b by t. The parameter t is not clamped.
+    //Interpola esfericamente entre un quat a y un quat b en un factor t. T no esta limitado entre 0 y 1.
     public static MyQuaternion SlerpUnclamped(MyQuaternion a, MyQuaternion b, float t)
     {
-        //https://en.wikipedia.org/wiki/Slerp#:~:text=0%20and%C2%A01.-,Geometric%20slerp,-%5Bedit%5D
+        //https://en.wikipedia.org/wiki/Slerp#:~:text=0%20and%C2%A01.-,Geometric%20slerp,-%5Bedit%5D formula
 
         MyQuaternion normA = a.normalized;
         MyQuaternion normB = b.normalized;
 
         float cosOmega = Dot(normA, normB);
 
-        if (cosOmega < 0.0f)
+        if (cosOmega < 0.0f) //Busca el camino mas corto
         {
-            // Flip the interpolation
+            //Cambia el signo de la interpolacion para ir hacia el otro lado
             cosOmega = -cosOmega;
         }
 
@@ -213,9 +214,11 @@ public class MyQuaternion
 
         float omega = Mathf.Acos(cosOmega);
 
+        //Coeficientes de incidencia, mantiene el quaternion unitario
         coeff1 = Mathf.Sin((1 - t) * omega) / Mathf.Sin(omega);
         coeff2 = (cosOmega < 0.0f ? -1 : 1) * (Mathf.Sin(t * omega) / Mathf.Sin(omega));
 
+        //Genera un nuevo vector multiplicando los componentes de ambos quat segun su coeficiente de incidencia
         return new MyQuaternion(
                 coeff1 * normA.x + coeff2 * normB.x,
                 coeff1 * normA.y + coeff2 * normB.y,
@@ -224,32 +227,35 @@ public class MyQuaternion
             );
     }
 
-    // Interpolates between a and b by t and normalizes the result afterwards. The parameter t is clamped to the range [0, 1]
-    // returns A quaternion interpolated between quaternions a and b.
+    //Interpola linearmente entre un quat a y un quat b en un factor t y normaliza el resultado. T esta limitado entre 0 y 1.
     public static MyQuaternion Lerp(MyQuaternion a, MyQuaternion b, float t)
     {
         return LerpUnclamped(a, b, Mathf.Clamp01(t));
     }
 
-    // Interpolates between a and b by t and normalizes the result afterwards. The parameter t is not clamped
+    //Interpola linearmente entre un quat a y un quat b en un factor t y normaliza el resultado. T no esta limitado entre 0 y 1.
     public static MyQuaternion LerpUnclamped(MyQuaternion a, MyQuaternion b, float t)
     {
         MyQuaternion result = identity;
 
-        if (Dot(a, b) >= float.Epsilon) // Checks which is the shortest path to rotate thowards that path.
+        float timeLeft = 1 - t; //Primero se averigua el tiempo restante (para que la rotación llegue de “a” a “b”).
+
+        if (Dot(a, b) >= 0) //Averigua el camino mas corto, dependiendo de eso se hace una suma o una resta para la fórmula de interpolación lineal 
         {
-            result.x = a.x + (b.x - a.x) * t;
-            result.y = a.y + (b.y - a.y) * t;
-            result.z = a.z + (b.z - a.z) * t;
-            result.w = a.w + (b.w - a.w) * t;
+            result.x = (timeLeft * a.x) + (t * b.x);
+            result.y = (timeLeft * a.y) + (t * b.y);
+            result.z = (timeLeft * a.z) + (t * b.z);
+            result.w = (timeLeft * a.w) + (t * b.w);
         }
-        else // Go in other direction
+        else
         {
-            result.x = a.x - (b.x - a.x) * t;
-            result.y = a.y - (b.y - a.y) * t;
-            result.z = a.z - (b.z - a.z) * t;
-            result.w = a.w - (b.w - a.w) * t;
+            result.x = (timeLeft * a.x) - (t * b.x);
+            result.y = (timeLeft * a.y) - (t * b.y);
+            result.z = (timeLeft * a.z) - (t * b.z);
+            result.w = (timeLeft * a.w) - (t * b.w);
         }
+
+        result.Normalize();
 
         return result;
     }
@@ -257,24 +263,22 @@ public class MyQuaternion
     public static MyQuaternion AngleAxis(float angle, Vector3 axis)
     {
         axis.Normalize();
-        axis *= Mathf.Sin(angle * Mathf.Deg2Rad * 0.5f); //Obtengo el eje rotado como se ve en la formula para rotar en 3D
+
+        axis *= Mathf.Sin(angle * Mathf.Deg2Rad * 0.5f); //Obtengo el eje rotado como se ve en la formula para eulers
 
         return new MyQuaternion(axis.x, axis.y, axis.z, Mathf.Cos(angle * Mathf.Deg2Rad * 0.5f)); //Le paso los ejes rotados correspondientes y la parte real es el cos del angulo/2
     }
 
+    //Representa una rotacion basada en una dirección foward y un up
     public static MyQuaternion LookRotation(Vector3 forward, Vector3 upwards)
     {
-        // If forward is almost zero return identity
-        if (forward.magnitude <= kEpsilon) return MyQuaternion.identity;
+        //Setea los ejes que compondran la rotación del quaternion
+        Vector3 forwardToUse = forward.normalized; 
+        Vector3 rightToUse = Vector3.Cross(upwards, forward).normalized; //Obtenemos el eje faltante con producto cruz
+        Vector3 upToUse = upwards.normalized; //Se normaliza para evitar ejes defasados 
 
-        // First, set the axis to use for the rotation
-        Vector3 forwardToUse = forward.normalized;
-        Vector3 rightToUse = Vector3.Cross(upwards, forward).normalized;
-        Vector3 upToUse = upwards.normalized;
-
-        // Now we have to make the rotation matrix, using the created axis values.
-        // every row of the matrix is one axis in the order of X Y Z 
-
+        //Se crea la matriz de rotacion usando los valores de los ejes que obtuvimos
+        //Cada fila es uno de los axis en orden x, y, z
         float m00 = rightToUse.x;
         float m01 = rightToUse.y;
         float m02 = rightToUse.z;
@@ -287,62 +291,51 @@ public class MyQuaternion
         float m21 = forwardToUse.y;
         float m22 = forwardToUse.z;
 
-        // Lastly, we have to do a conversion from the Rotation Matrix to a Quaternion.
-        //https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf
-
-        // First we have to know which equations we should use, depending on which quaternion value we are
-        // Certain it will not be zero. Then, we apply the correct matrix equations from the sums and substractions
-        // created equations.
+        //Formamos un quaternion en base a la fórmula de una matriz creada a partir de un cuaternion
 
         MyQuaternion result;
         float factor;
 
-        if (m22 < 0) // sqr(X) + sqr(Y) > 1/2, which is the same to say that |(X, Y)| > |(Z, W)| if normalized
+        //Se determina qué componente del cuaternión (x, y, z o w) es más significativo basándose en los elementos de la matriz para evitar que en determinadas
+        //situaciones puede volverse todo 0.
+
+        if (m22 < 0) // sqr(X) + sqr(Y) > 1/2 que es lo mismo que |(X, Y)| > |(Z, W)| si estan normalizadas
         {
-            // We know for certain sqr(X) + sqr(Y) > 1/2, so we have to check which one is bigger to be certain its not zero
-            if (m00 > m11) // is X bigger than Y ?
+            //Comprueba si el componente x es mayor que el componente y se asegura de que el componente x no sea cero
+            if (m00 > m11) //X > Y ?
             {
-                // We know for certain X is not zero, so we take the x value from the trace.
+                //Se calcula el factor correspondiente para x 
                 factor = 1 + m00 - m11 - m22; // sqr(X)
 
-                // And the result is the equations that have multiplied by 4X.
+                //Se construye el cuaternión con las ecuaciones correctas.
                 result = new MyQuaternion(factor, m10 + m01, m20 + m02, m12 - m21);
             }
             else
             {
-                // We know for certain Y is not zero
-                factor = 1 - m00 + m11 - m22; // sqr(Y)
+                factor = 1 - m00 + m11 - m22;
 
-                // And the result is the equations that have multiplied by 4Y.
                 result = new MyQuaternion(m01 + m10, factor, m12 + m21, m20 - m02);
             }
         }
         else
         {
-            // We know for certain sqr(Z) + sqr(W) > 1/2, so we have to check which one is bigger to be certain its not zero
-            if (m00 < -m11) // Is Z bigger than W ?
+            if (m00 < -m11)
             {
-                // We know for certain Z is not zero
-                factor = 1 - m00 - m11 + m22; // sqr(Z)
-
-                // And the result is the equations that are multiplied by 4Z.
+                factor = 1 - m00 - m11 + m22;
                 result = new MyQuaternion(m20 + m02, m12 + m21, factor, m01 - m10);
             }
             else
             {
-                // We know for certain W is not zero
-                factor = 1 + m00 + m11 + m22; // sqr(W)
-
-                // And the result is the equations that are multiplied by 4W.
+                factor = 1 + m00 + m11 + m22; 
                 result = new MyQuaternion(m12 - m21, m20 - m02, m01 - m10, factor);
             }
         }
-        // Finally, we have to take out the factor that is in the quaternion.
 
+        //Después de calcular el cuaternión con el componente dominante, se normaliza
+        //Asegura que el cuaternión resultante tenga una magnitud de 1, haciendo que represente una rotación válida.
         result *= 0.5f / Mathf.Sqrt(factor);
 
         return result;
-
     }
 
     public static MyQuaternion LookRotation(Vector3 forward)
@@ -353,9 +346,9 @@ public class MyQuaternion
         Vector3 vector2 = Vector3.Cross(upwards, forward).normalized;
         Vector3 vector3 = Vector3.Cross(forward, vector2);
 
-
         float diagonal = vector2.x + vector3.y + forward.z;
         var quaternion = new MyQuaternion();
+
         if (diagonal > 0f)
         {
             var cos = (float)Math.Sqrt(diagonal + 1f);
@@ -366,7 +359,7 @@ public class MyQuaternion
             quaternion.z = (vector2.y - vector3.x) * cos;
             return quaternion;
         }
-        if ((vector2.x >= vector3.y) && (vector2.x >= forward.z)) //si el primer valor de la matriz es mayor o igual a sus dos en diagonal
+        if ((vector2.x >= vector3.y) && (vector2.x >= forward.z)) //Si el primer valor de la matriz es mayor o igual a sus dos en diagonal
         {
             var cos1 = (float)Math.Sqrt(((1f + vector2.x) - vector3.y) - forward.z); //Cos
             var num4 = 0.5f / cos1;
@@ -515,6 +508,7 @@ public class MyQuaternion
         return FromEulerToQuat(euler.x, euler.y, euler.z);
     }
 
+    //Revierte AngleAxis, es decir, a partir de un quaternion nos devuelve el angulo y el axis
     public void ToAngleAxis(out float angle, out Vector3 axis)
     {
         MyQuaternion thisNormalized = this.normalized;
@@ -553,64 +547,6 @@ public class MyQuaternion
 
         float t = Mathf.Min(1f, maxDegreesDelta / num);
         return SlerpUnclamped(from, to, t);
-    }
-
-    public static MyQuaternion GetQuaternionFromRotationMatrix(Vector3 column1, Vector3 column2, Vector3 column3)
-    {
-        //https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf 
-
-        // First we have to know which equations we should use, depending on which quaternion value we are
-        // Certain it will not be zero. Then, we apply the correct matrix equations from the sums and substractions
-        // created equations.
-
-        MyQuaternion result;
-        float factor;
-
-        if (column3.z < 0) // sqr(X) + sqr(Y) > 1/2, which is the same to say that |(X, Y)| > |(Z, W)| if normalized
-        {
-            // We know for certain sqr(X) + sqr(Y) > 1/2, so we have to check which one is bigger to be certain its not zero
-            if (column1.x > column2.y) // is X bigger than Y ?
-            {
-                // We know for certain X is not zero, so we take the x value from the trace.
-                factor = 1 + column1.x - column2.y - column3.z; // sqr(X)
-
-                // And the result is the equations that have multiplied by 4X.
-                result = new MyQuaternion(factor, column2.x + column1.y, column3.x + column1.z, column2.z - column3.y);
-            }
-            else
-            {
-                // We know for certain Y is not zero
-                factor = 1 - column1.x + column2.y - column3.z; // sqr(Y)
-
-                // And the result is the equations that have multiplied by 4Y.
-                result = new MyQuaternion(column1.y + column2.x, factor, column2.z + column3.y, column3.x - column1.z);
-            }
-        }
-        else
-        {
-            // We know for certain sqr(Z) + sqr(W) > 1/2, so we have to check which one is bigger to be certain its not zero
-            if (column1.x < -column2.y) // Is Z bigger than W ?
-            {
-                // We know for certain Z is not zero
-                factor = 1 - column1.x - column2.y + column3.z; // sqr(Z)
-
-                // And the result is the equations that are multiplied by 4Z.
-                result = new MyQuaternion(column3.x + column1.z, column2.z + column3.y, factor, column1.y - column2.x);
-            }
-            else
-            {
-                // We know for certain W is not zero
-                factor = 1 + column1.x + column2.y + column3.z; // sqr(W)
-
-                // And the result is the equations that are multiplied by 4W.
-                result = new MyQuaternion(column2.z - column3.y, column3.x - column1.z, column1.y - column2.x, factor);
-            }
-        }
-        // Finally, we have to take out the factor that is in the quaternion.
-
-        result *= 0.5f / Mathf.Sqrt(factor);
-
-        return result;
     }
 
     public static MyQuaternion Normalize(MyQuaternion q)
