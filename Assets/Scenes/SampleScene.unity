@@ -153,7 +153,7 @@ MonoBehaviour:
   m_Script: {fileID: 1731222253, guid: e96d3a86a5ab8984aa51a50aec168622, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ejercicio: 2
+  ejercicio: 0
   angle: 1
 --- !u!4 &367627190
 Transform:
@@ -182,8 +182,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cee9f6ff2841826479b0da4a4c0d9526, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  exerciseNumber: 3
-  Angle: 1.2
+  exerciseNumber: 1
+  Angle: 1
 --- !u!1 &705507993
 GameObject:
   m_ObjectHideFlags: 0

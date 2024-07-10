@@ -1,9 +1,11 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEditorInternal;
 using UnityEngine;
+using CustomMath;
 
-public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
+public class MyMatrix4x4 
 {
     public float m00;
     public float m33;
@@ -156,7 +158,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     }
 
     //Devuelve la escala real del objeto. Esto es en caso de que se apliquen rotaciones y otros cálculos, donde se pierde la escala
-    public Vector3 lossyScale => new(GetColumn(0).magnitude, GetColumn(1).magnitude, GetColumn(2).magnitude);
+    public Vec3 lossyScale => new(GetColumn(0).magnitude, GetColumn(1).magnitude, GetColumn(2).magnitude);
 
     //Chequea si es matriz identidad
     public bool IsIdentity
@@ -357,7 +359,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     }
 
     //Crea una matriz de escala que escala cualquier vector que se multiplique por ella
-    public static MyMatrix4x4 Scale(Vector3 vector)
+    public static MyMatrix4x4 Scale(Vec3 vector)
     {
         return new MyMatrix4x4(
             new Vector4(vector.x, 0, 0, 0),
@@ -368,7 +370,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     }
 
     //Crea una matriz de traslacion que, teniendo en cuenta una escala 1, representa la posicion con respecto al origen //En directX esta abajo
-    public static MyMatrix4x4 Translate(Vector3 vector)
+    public static MyMatrix4x4 Translate(Vec3 vector)
     {
         return new MyMatrix4x4(
             new Vector4(1, 0, 0, vector.x),
@@ -378,7 +380,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         );
     }
 
-    public static MyMatrix4x4 TRS(Vector3 pos, MyQuaternion q, Vector3 s) //Devuelve la matriz TRS de los valores ingresados
+    public static MyMatrix4x4 TRS(Vec3 pos, MyQuaternion q, Vec3 s) //Devuelve la matriz TRS de los valores ingresados
     {
         return (Translate(pos) * Rotate(q) * Scale(s)); //Va en este orden porque no es conmutativo. Primero multiplica scale y rotate y luego lo traslada.
     }
@@ -409,9 +411,9 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
     }
 
     //Obtiene el vector posicion en la matriz
-    public Vector3 GetPosition()
+    public Vec3 GetPosition()
     {
-        return new Vector3(m03, m13, m23);
+        return new Vec3(m03, m13, m23);
     }
 
     public Vector4 GetRow(int index) //Devuelve la fila
@@ -426,10 +428,9 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         };
     }
 
-
-    public Vector3 MultiplyPoint(Vector3 p)
+    public Vec3 MultiplyPoint(Vec3 p)
     {
-        Vector3 v3;
+        Vec3 v3;
 
         v3.x = (float)((double)m00 * (double)p.x + (double)m01 * (double)p.y + (double)m02 * (double)p.z) + m03;
         v3.y = (float)((double)m10 * (double)p.x + (double)m11 * (double)p.y + (double)m12 * (double)p.z) + m13;
@@ -444,18 +445,18 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         return v3;
     }
 
-    public Vector3 MultiplyPoint3x4(Vector3 p) //Multiplica las componentes del vector en la matriz (X, Y y Z pero no ignoro W)
+    public Vec3 MultiplyPoint3x4(Vec3 p) //Multiplica las componentes del vector en la matriz (X, Y y Z pero no ignoro W)
     {
-        Vector3 v3;
+        Vec3 v3;
         v3.x = (float)((double)m00 * (double)p.x + (double)m01 * (double)p.y + (double)m02 * (double)p.z) + m03;
         v3.y = (float)((double)m10 * (double)p.x + (double)m11 * (double)p.y + (double)m12 * (double)p.z) + m13;
         v3.z = (float)((double)m20 * (double)p.x + (double)m21 * (double)p.y + (double)m22 * (double)p.z) + m23;
         return v3;
     }
 
-    public Vector3 MultiplyVector(Vector3 v) //Multiplica las componentes del vector en la matriz (pero solo en X, Y y Z; ignorando W)
+    public Vec3 MultiplyVector(Vec3 v) //Multiplica las componentes del vector en la matriz (pero solo en X, Y y Z; ignorando W)
     {
-        Vector3 v3; //No se tienen en cuenta ni la 4ta fila ni la 4ta columna
+        Vec3 v3; //No se tienen en cuenta ni la 4ta fila ni la 4ta columna
         v3.x = (float)((double)m00 * (double)v.x + (double)m01 * (double)v.y + (double)m02 * (double)v.z);
         v3.y = (float)((double)m10 * (double)v.x + (double)m11 * (double)v.y + (double)m12 * (double)v.z);
         v3.z = (float)((double)m20 * (double)v.x + (double)m21 * (double)v.y + (double)m22 * (double)v.z);
@@ -479,7 +480,7 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         this[index, 3] = row.w;
     }
 
-    public void SetTRS(Vector3 pos, MyQuaternion q, Vector3 s)
+    public void SetTRS(Vec3 pos, MyQuaternion q, Vec3 s)
     {
         MyMatrix4x4 trs = TRS(pos, q, s);
 
@@ -489,56 +490,29 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         }
     }
 
-
-    public string ToString(string format, IFormatProvider formatProvider)
-    {
-        return $"{m00} {m01} {m02} {m03}\n {m10} {m11} {m12} {m13}\n {m20} {m21} {m22} {m23}\n {m30} {m31} {m32} {m33}";
-    }
-
-
     public bool ValidTRS()
     {
         //Checks if every axis is orthogonal (aka everyone of them are perpendicular between them)
 
         float kEpsilon = 1E-25F;
 
-        Vector3 column0 = new Vector3(m00, m10, m20);
-        Vector3 column1 = new Vector3(m01, m11, m21);
-        Vector3 column2 = new Vector3(m02, m12, m22);
+        Vec3 column0 = new Vec3(m00, m10, m20);
+        Vec3 column1 = new Vec3(m01, m11, m21);
+        Vec3 column2 = new Vec3(m02, m12, m22);
 
-        return Vector3.Dot(column0, column1) <= kEpsilon &&
-               Vector3.Dot(column0, column2) <= kEpsilon &&
-               Vector3.Dot(column1, column2) <= kEpsilon;
+        return Vec3.Dot(column0, column1) <= kEpsilon &&
+               Vec3.Dot(column0, column2) <= kEpsilon &&
+               Vec3.Dot(column1, column2) <= kEpsilon;
     }
 
     public static MyMatrix4x4 operator *(MyMatrix4x4 lhs, MyMatrix4x4 rhs)
     {
         return new MyMatrix4x4(
-            new Vector4(
-                lhs.m00 * rhs.m00 + lhs.m01 * rhs.m10 + lhs.m02 * rhs.m20 + lhs.m03 * rhs.m30,
-                lhs.m00 * rhs.m01 + lhs.m01 * rhs.m11 + lhs.m02 * rhs.m21 + lhs.m03 * rhs.m31,
-                lhs.m00 * rhs.m02 + lhs.m01 * rhs.m12 + lhs.m02 * rhs.m22 + lhs.m03 * rhs.m32,
-                lhs.m00 * rhs.m03 + lhs.m01 * rhs.m13 + lhs.m02 * rhs.m23 + lhs.m03 * rhs.m33
-                ),
-            new Vector4(
-                lhs.m10 * rhs.m00 + lhs.m11 * rhs.m10 + lhs.m12 * rhs.m20 + lhs.m13 * rhs.m30,
-                lhs.m10 * rhs.m01 + lhs.m11 * rhs.m11 + lhs.m12 * rhs.m21 + lhs.m13 * rhs.m31,
-                lhs.m10 * rhs.m02 + lhs.m11 * rhs.m12 + lhs.m12 * rhs.m22 + lhs.m13 * rhs.m32,
-                lhs.m10 * rhs.m03 + lhs.m11 * rhs.m13 + lhs.m12 * rhs.m23 + lhs.m13 * rhs.m33
-                ),
-            new Vector4(
-                lhs.m20 * rhs.m00 + lhs.m21 * rhs.m10 + lhs.m22 * rhs.m20 + lhs.m23 * rhs.m30,
-                lhs.m20 * rhs.m01 + lhs.m21 * rhs.m11 + lhs.m22 * rhs.m21 + lhs.m23 * rhs.m31,
-                lhs.m20 * rhs.m02 + lhs.m21 * rhs.m12 + lhs.m22 * rhs.m22 + lhs.m23 * rhs.m32,
-                lhs.m20 * rhs.m03 + lhs.m21 * rhs.m13 + lhs.m22 * rhs.m23 + lhs.m23 * rhs.m33
-                ),
-            new Vector4(
-                lhs.m30 * rhs.m00 + lhs.m31 * rhs.m10 + lhs.m32 * rhs.m20 + lhs.m33 * rhs.m30,
-                lhs.m30 * rhs.m01 + lhs.m31 * rhs.m11 + lhs.m32 * rhs.m21 + lhs.m33 * rhs.m31,
-                lhs.m30 * rhs.m02 + lhs.m31 * rhs.m12 + lhs.m32 * rhs.m22 + lhs.m33 * rhs.m32,
-                lhs.m30 * rhs.m03 + lhs.m31 * rhs.m13 + lhs.m32 * rhs.m23 + lhs.m33 * rhs.m33
-            )
-        );
+            lhs * lhs.GetColumn(0),
+            lhs * lhs.GetColumn(1),
+            lhs * lhs.GetColumn(2),
+            lhs * lhs.GetColumn(3)
+            );
     }
 
     public static bool operator ==(MyMatrix4x4 lhs, MyMatrix4x4 rhs)
@@ -550,8 +524,8 @@ public class MyMatrix4x4 : IEquatable<MyMatrix4x4>, IFormattable
         return !(lhs == rhs);
     }
 
-    //Devuelve el vector4 modificado por cada una de las filas de la matriz. Es
-    public static Vector4 operator *(MyMatrix4x4 lhs, Vector4 vector) //TODO: LLamar 4 veces esto en la multiplicacion de 2 matrices 4x4
+    //Devuelve el vector4 modificado por cada una de las filas de la matriz.
+    public static Vector4 operator *(MyMatrix4x4 lhs, Vector4 vector)
     {
         return new Vector4(
             lhs.m00 * vector.x + lhs.m01 * vector.y + lhs.m02 * vector.z + lhs.m03 * vector.w,

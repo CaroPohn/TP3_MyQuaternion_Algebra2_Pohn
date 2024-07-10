@@ -1,22 +1,23 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CustomMath;
 
 public class SolucionEjercicios : MonoBehaviour
 {
     [SerializeField] private int exerciseNumber;
     [SerializeField] private float Angle;
 
-    private Vector3 vectorA = new Vector3(10, 0, 0);
+    private Vec3 vectorA = new Vec3(10, 0, 0);
 
-    private Vector3 vectorB = new Vector3(10, 0, 0);
-    private Vector3 vectorC = new Vector3(10, 10, 0);
-    private Vector3 vectorD = new Vector3(20, 10, 0);
+    private Vec3 vectorB = new Vec3(10, 0, 0);
+    private Vec3 vectorC = new Vec3(10, 10, 0);
+    private Vec3 vectorD = new Vec3(20, 10, 0);
 
-    private Vector3 vectorE = new Vector3(10, 0, 0);
-    private Vector3 vectorF = new Vector3(10, 10, 0);
-    private Vector3 vectorG = new Vector3(20, 10, 0);
-    private Vector3 vectorH = new Vector3(20, 20, 0);
+    private Vec3 vectorE = new Vec3(10, 0, 0);
+    private Vec3 vectorF = new Vec3(10, 10, 0);
+    private Vec3 vectorG = new Vec3(20, 10, 0);
+    private Vec3 vectorH = new Vec3(20, 20, 0);
 
     private void FixedUpdate()
     {
@@ -41,14 +42,14 @@ public class SolucionEjercicios : MonoBehaviour
 
     private void Exercise1()
     {
-        MyQuaternion rotation = MyQuaternion.AngleAxis(Angle, Vector3.up);
+        MyQuaternion rotation = MyQuaternion.AngleAxis(Angle, Vec3.up);
 
         vectorA = rotation * vectorA;
     }
 
     private void Exercise2()
     {
-        MyQuaternion rotation = MyQuaternion.AngleAxis(Angle, Vector3.up);
+        MyQuaternion rotation = MyQuaternion.AngleAxis(Angle, Vec3.up);
 
         vectorB = rotation * vectorB;
         vectorC = rotation * vectorC;
@@ -71,22 +72,22 @@ public class SolucionEjercicios : MonoBehaviour
         if(exerciseNumber == 1)
         {
             Gizmos.color = Color.magenta;
-            Gizmos.DrawLine(transform.position, transform.position + vectorA);
+            Gizmos.DrawLine(transform.position, transform.position + (Vector3)vectorA);
         }
         else if(exerciseNumber == 2)
         {
             Gizmos.color = Color.red;
-            Gizmos.DrawLine(transform.position, transform.position + vectorB);
-            Gizmos.DrawLine(vectorB, transform.position + vectorC);
-            Gizmos.DrawLine(vectorC, transform.position + vectorD);
+            Gizmos.DrawLine(transform.position, transform.position + (Vector3)vectorB);
+            Gizmos.DrawLine(vectorB, transform.position + (Vector3)vectorC);
+            Gizmos.DrawLine(vectorC, transform.position + (Vector3)vectorD);
         }
         else if(exerciseNumber == 3)
         {
             Gizmos.color = Color.cyan;
-            Gizmos.DrawLine(transform.position, transform.position + vectorE);
-            Gizmos.DrawLine(vectorE, transform.position + vectorF);
-            Gizmos.DrawLine(vectorF, transform.position + vectorG);
-            Gizmos.DrawLine(vectorG, transform.position + vectorH);
+            Gizmos.DrawLine(transform.position, transform.position + (Vector3)vectorE);
+            Gizmos.DrawLine(vectorE, transform.position + (Vector3)vectorF);
+            Gizmos.DrawLine(vectorF, transform.position + (Vector3)vectorG);
+            Gizmos.DrawLine(vectorG, transform.position + (Vector3)vectorH);
         }
     }
 }

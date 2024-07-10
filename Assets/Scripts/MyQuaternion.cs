@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using CustomMath;
 
 public class MyQuaternion
 {
@@ -92,61 +93,16 @@ public class MyQuaternion
         }
     }
 
-    public Vector3 eulerAngles
+    public Vec3 eulerAngles
     {
         get
         {
-            float sqW = w * w;
-            float sqX = x * x;
-            float sqY = y * y;
-            float sqZ = z * z;
-
-            float unit = sqX + sqY + sqZ + sqW; //Chequea si el quat esta normalizado (da 1 si si, sino lo corrige)
-
-            float test = x * w - y * z; //Obtiene el valor de x
-
-            Vector3 anglesVector = new Vector3();
-
-            if (test > 0.4999f * unit) //Singularidad en polo norte (cuando x se acerca a +90°)
-            {
-                anglesVector.y = 2f * Mathf.Atan2(y, x); //Calcula los valores para que los ejes no se superpongan
-                anglesVector.x = Mathf.PI / 2;
-                anglesVector.z = 0;
-
-                return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
-            }
-            if (test < -0.4999f * unit) //Singularidad en polo sur (cuando x se acerca a -90°)
-            {
-                anglesVector.y = -2f * Mathf.Atan2(y, x);
-                anglesVector.x = -Mathf.PI / 2;
-                anglesVector.z = 0;
-
-                return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
-            }
-
-            MyQuaternion orderQuat = new MyQuaternion(w, z, x, y);
-
-            anglesVector.y = (float)Math.Atan2(2f * orderQuat.x * orderQuat.w + 2f * orderQuat.y * orderQuat.z, 1 - 2f * (orderQuat.z * orderQuat.z + orderQuat.y * orderQuat.y));
-            anglesVector.x = (float)Math.Asin(2f * (orderQuat.x * orderQuat.z - orderQuat.w * orderQuat.y));
-            anglesVector.z = (float)Math.Atan2(2f * orderQuat.x * orderQuat.y + 2f * orderQuat.z * orderQuat.w, 1 - 2f * (orderQuat.y * orderQuat.y + orderQuat.z * orderQuat.z));
-
-            return NormalizeAngles(anglesVector * Mathf.Rad2Deg);
+           return QuatToEulerRad(this);
         }
 
         set
         {
-            //Cada coordenada de los Euler representa en ese eje que tan rotado esta el objeto 
-
-            float xInRad = Mathf.Deg2Rad * value.x * 0.5f; //Lo paso a radianes para poder trabajar con seno y coseno
-            float yInRad = Mathf.Deg2Rad * value.y * 0.5f;
-            float zInRad = Mathf.Deg2Rad * value.z * 0.5f;
-
-            //Teniendo en cuenta la fórmula para rotar en 3D Cos(a/2) + iSin(a/2) + jSin(a/2) + kSin(a/2) calcula la rotacion en cada uno de los ejes.
-            MyQuaternion qx = new MyQuaternion(Mathf.Sin(xInRad), 0, 0, Mathf.Cos(xInRad));
-            MyQuaternion qy = new MyQuaternion(0, Mathf.Sin(yInRad), 0, Mathf.Cos(yInRad));
-            MyQuaternion qz = new MyQuaternion(0, 0, Mathf.Sin(zInRad), Mathf.Cos(zInRad));
-
-            MyQuaternion result = qy * qx * qz; //Hago la multiplicación para aplicar la rotación. Es en ese orden por como maneja el orden unity.
+            MyQuaternion result = FromEulerToQuat(value);
 
             this.x = result.x;
             this.y = result.y;
@@ -171,13 +127,13 @@ public class MyQuaternion
     #endregion
 
     #region FUNCIONES
-    public static MyQuaternion FromToRotation(Vector3 fromDirection, Vector3 toDirection)
+    public static MyQuaternion FromToRotation(Vec3 fromDirection, Vec3 toDirection)
     {
         //Con producto cruz obtengo un vector perpendicular a los que tengo (axis)
-        Vector3 axis = Vector3.Cross(fromDirection, toDirection);
+        Vec3 axis = Vec3.Cross(fromDirection, toDirection);
 
         //Calculamos el angulo entre los dos vectores
-        float angle = Vector3.Angle(fromDirection, toDirection);
+        float angle = Vec3.Angle(fromDirection, toDirection);
 
         //Va a girar en el eje pasado la cantidad de ángulos pasados
         return AngleAxis(angle, axis);
@@ -261,7 +217,7 @@ public class MyQuaternion
     }
 
     //Me devuelve un quaternion de rotacion que me va a modificar la rotacion en un angulo determinado alrededor de un eje especifico
-    public static MyQuaternion AngleAxis(float angle, Vector3 axis)
+    public static MyQuaternion AngleAxis(float angle, Vec3 axis)
     {
         axis.Normalize();
 
@@ -271,12 +227,12 @@ public class MyQuaternion
     }
 
     //Representa una rotacion basada en una dirección foward y un up
-    public static MyQuaternion LookRotation(Vector3 forward, Vector3 upwards)
+    public static MyQuaternion LookRotation(Vec3 forward, Vec3 upwards)
     {
         //Setea los ejes que compondran la rotación del quaternion
-        Vector3 forwardToUse = forward.normalized; 
-        Vector3 rightToUse = Vector3.Cross(upwards, forward).normalized; //Obtenemos el eje faltante con producto cruz
-        Vector3 upToUse = upwards.normalized; //Se normaliza para evitar ejes defasados 
+        Vec3 forwardToUse = forward.normalized; 
+        Vec3 rightToUse = Vec3.Cross(upwards, forward).normalized; //Obtenemos el eje faltante con producto cruz
+        Vec3 upToUse = upwards.normalized; //Se normaliza para evitar ejes defasados 
 
         //Se crea la matriz de rotacion usando los valores de los ejes que obtuvimos
         //Cada fila es uno de los axis en orden x, y, z
@@ -339,15 +295,15 @@ public class MyQuaternion
         return result;
     }
 
-    public static MyQuaternion LookRotation(Vector3 forward)
+    public static MyQuaternion LookRotation(Vec3 forward)
     {
-        Vector3 upwards = Vector3.up; //Toma el del mundo
+        Vec3 upwards = Vec3.up; //Toma el del mundo
 
         forward.Normalize();
 
-        Vector3 newRight = Vector3.Cross(upwards, forward).normalized; //Calculo el right de acuerdo al forward
+        Vec3 newRight = Vec3.Cross(upwards, forward).normalized; //Calculo el right de acuerdo al forward
 
-        Vector3 newUp = Vector3.Cross(forward, newRight); //Calcula el up entre los dos ejes, para evitar posibles errores de escala
+        Vec3 newUp = Vec3.Cross(forward, newRight); //Calcula el up entre los dos ejes, para evitar posibles errores de escala
 
         return LookRotation(forward, newUp);
     }
@@ -357,7 +313,7 @@ public class MyQuaternion
         return a.x * b.x + a.y * b.y + a.z * b.z + a.w * b.w;
     }
 
-    public void SetLookRotation(Vector3 view, Vector3 up)
+    public void SetLookRotation(Vec3 view, Vec3 up)
     {
         this.x = LookRotation(view, up).x;
         this.y = LookRotation(view, up).y;
@@ -365,9 +321,9 @@ public class MyQuaternion
         this.w = LookRotation(view, up).w;
     }
 
-    public void SetLookRotation(Vector3 view)
+    public void SetLookRotation(Vec3 view)
     {
-        Vector3 up = Vector3.up;
+        Vec3 up = Vec3.up;
         SetLookRotation(view, up);
     }
 
@@ -397,9 +353,9 @@ public class MyQuaternion
         return angle;
     }
 
-    private static Vector3 NormalizeAngles(Vector3 angles)
+    private static Vec3 NormalizeAngles(Vec3 angles)
     {
-        Vector3 normalizedAngles = new Vector3();
+        Vec3 normalizedAngles = new Vec3();
 
         normalizedAngles.x = NormalizeAngle(angles.x);
         normalizedAngles.y = NormalizeAngle(angles.y);
@@ -408,7 +364,7 @@ public class MyQuaternion
         return normalizedAngles;
     }
 
-    public static Vector3 QuatToEulerRad(MyQuaternion q1) //TODO: llamar en get y set de euler estas funciones
+    public static Vec3 QuatToEulerRad(MyQuaternion q1)
     {
         float sqW = q1.w * q1.w;
         float sqX = q1.x * q1.x;
@@ -419,7 +375,7 @@ public class MyQuaternion
 
         float test = q1.x * q1.w - q1.y * q1.z; //Obtiene el valor de x
 
-        Vector3 anglesVector = new Vector3();
+        Vec3 anglesVector = new Vec3();
 
         if (test > 0.4999f * unit) //Singularidad en polo norte (cuando x se acerca a +90°)
         {
@@ -465,13 +421,13 @@ public class MyQuaternion
         return new MyQuaternion(result.x, result.y, result.z, result.w);
     }
 
-    public static MyQuaternion FromEulerToQuat(Vector3 euler)
+    public static MyQuaternion FromEulerToQuat(Vec3 euler)
     {
         return FromEulerToQuat(euler.x, euler.y, euler.z);
     }
 
     //Revierte AngleAxis, es decir, a partir de un quaternion nos devuelve el angulo y el axis
-    public void ToAngleAxis(out float angle, out Vector3 axis)
+    public void ToAngleAxis(out float angle, out Vec3 axis)
     {
         MyQuaternion thisNormalized = this.normalized;
 
@@ -484,13 +440,13 @@ public class MyQuaternion
         // if magnitude is almost zero, we return any axis, as there is no rotation
         if (magnitude < 0.0001f)
         {
-            axis = new Vector3(1, 0, 0);
+            axis = new Vec3(1, 0, 0);
         }
         else
         {
             // If we have a rotation, then we divide the imaginary values by the sin of the angle
             // Note: This does not perform well as we are diving by floats, but for understanding ill leave it like so
-            axis = new Vector3(
+            axis = new Vec3(
                 thisNormalized.x / Mathf.Sin(angle / 2f),
                 thisNormalized.y / Mathf.Sin(angle / 2f),
                 thisNormalized.z / Mathf.Sin(angle / 2f)
@@ -531,11 +487,6 @@ public class MyQuaternion
         this.w = Normalize(this).w;
     }
 
-    public override int GetHashCode() //De Unity
-    {
-        return x.GetHashCode() ^ (y.GetHashCode() << 2) ^ (z.GetHashCode() >> 2) ^ (w.GetHashCode() >> 1);
-    }
-
     public override bool Equals(object other)
     {
         if (!(other is MyQuaternion))
@@ -550,12 +501,6 @@ public class MyQuaternion
     {
         return x.Equals(other.x) && y.Equals(other.y) && z.Equals(other.z) && w.Equals(other.w); //Incorpora el Equals de float
     }
-
-    public override string ToString()
-    {
-        return $"({x}, {y}, {z}, {w})";
-    }
-
 
     #endregion
 
@@ -580,12 +525,12 @@ public class MyQuaternion
         );
     }
 
-    public static Vector3 operator *(MyQuaternion rotation, Vector3 point)
+    public static Vec3 operator *(MyQuaternion rotation, Vec3 point)
     {
         MyQuaternion pureVectorQuaternion = new MyQuaternion(point.x, point.y, point.z, 0);
         MyQuaternion appliedPureQuaternion = rotation * pureVectorQuaternion * MyQuaternion.Inverse(rotation);
 
-        return new Vector3(appliedPureQuaternion.x, appliedPureQuaternion.y, appliedPureQuaternion.z);
+        return new Vec3(appliedPureQuaternion.x, appliedPureQuaternion.y, appliedPureQuaternion.z);
     }
 
     private static bool IsEqualUsingDot(float dot)
