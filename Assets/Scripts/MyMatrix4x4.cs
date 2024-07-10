@@ -184,8 +184,7 @@ public class MyMatrix4x4
         }
     }
 
-
-    //Devuelve el determinante de una matriz
+    //El determinante de esta matriz
     public float determinant
     {
         get
@@ -195,7 +194,7 @@ public class MyMatrix4x4
     }
 
 
-    //Returns the transpose of this matrix
+    //La transpuesta de esta matriz
     public MyMatrix4x4 transpose
     {
         get
@@ -204,7 +203,7 @@ public class MyMatrix4x4
         }
     }
 
-    //The inverse of this matrix
+    //La inversa de esta matriz
     public MyMatrix4x4 inverse
     {
         get
@@ -327,7 +326,6 @@ public class MyMatrix4x4
             m32 = m.m23,
         };
     }
-
 
     //A partir de un quaternion arma la matriz de rotacion
     //La matriz de rotacion es una matriz que aplica 3 rotaciones, una para cada eje (ya que se arma multiplicando la matriz de rotacion en x, y, z)
@@ -508,10 +506,10 @@ public class MyMatrix4x4
     public static MyMatrix4x4 operator *(MyMatrix4x4 lhs, MyMatrix4x4 rhs)
     {
         return new MyMatrix4x4(
-            lhs * lhs.GetColumn(0),
-            lhs * lhs.GetColumn(1),
-            lhs * lhs.GetColumn(2),
-            lhs * lhs.GetColumn(3)
+            lhs * rhs.GetColumn(0),
+            lhs * rhs.GetColumn(1),
+            lhs * rhs.GetColumn(2),
+            lhs * rhs.GetColumn(3)
             );
     }
 
