@@ -138,20 +138,57 @@ public class MyMatrix4x4
     {
         get
         {
+            //https://d3cw3dd2w32x2b.cloudfront.net/wp-content/uploads/2015/01/matrix-to-quat.pdf
+
             MyMatrix4x4 m = this;
-            MyQuaternion q = MyQuaternion.identity;
 
-            //Toma la diagonal (m00, m11, m22) que es la escala y en base a eso aplica en cada uno de los ejes su respectiva escala
-            //Toma en cuenta la escala para poder ajustar bien los valores ya que la escala y rotacion comparten valores
+            float trace = m.m00 + m.m11 + m.m22;
+            float s;
 
-            q.w = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] + m[1, 1] + m[2, 2])) / 2; //Devuelve la raiz de un número que debe ser al menos 0.
-            q.x = Mathf.Sqrt(Mathf.Max(0, 1 + m[0, 0] - m[1, 1] - m[2, 2])) / 2;
-            q.y = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] + m[1, 1] - m[2, 2])) / 2;
-            q.z = Mathf.Sqrt(Mathf.Max(0, 1 - m[0, 0] - m[1, 1] + m[2, 2])) / 2;
+            MyQuaternion q = new MyQuaternion();
 
-            q.x *= Mathf.Sign(q.x * (m[2, 1] - m[1, 2]));
-            q.y *= Mathf.Sign(q.y * (m[0, 2] - m[2, 0])); //Tiene en cuenta los senos de cada eje para saber que signo deben tener
-            q.z *= Mathf.Sign(q.z * (m[1, 0] - m[0, 1]));
+            if (trace > 0)
+            {
+                s = 0.5f / Mathf.Sqrt(trace + 1.0f);
+                q.w = 0.25f / s;
+                q.x = (m.m21 - m.m12) * s;
+                q.y = (m.m02 - m.m20) * s;
+                q.z = (m.m10 - m.m01) * s;
+            }
+            else
+            {
+                if (m.m00 > m.m11 && m.m00 > m.m22)
+                {
+                    s = 2.0f * Mathf.Sqrt(1.0f + m.m00 - m.m11 - m.m22);
+                    q.w = (m.m21 - m.m12) / s;
+                    q.x = 0.25f * s;
+                    q.y = (m.m01 + m.m10) / s;
+                    q.z = (m.m02 + m.m20) / s;
+                }
+                else if (m.m11 > m.m22)
+                {
+                    s = 2.0f * Mathf.Sqrt(1.0f + m.m11 - m.m00 - m.m22);
+                    q.w = (m.m02 - m.m20) / s;
+                    q.x = (m.m01 + m.m10) / s;
+                    q.y = 0.25f * s;
+                    q.z = (m.m12 + m.m21) / s;
+                }
+                else
+                {
+                    s = 2.0f * Mathf.Sqrt(1.0f + m.m22 - m.m00 - m.m11);
+                    q.w = (m.m10 - m.m01) / s;
+                    q.x = (m.m02 + m.m20) / s;
+                    q.y = (m.m12 + m.m21) / s;
+                    q.z = 0.25f * s;
+                }
+            }
+
+            // Normalizar el cuaternión
+            float length = Mathf.Sqrt(q.x * q.x + q.y * q.y + q.z * q.z + q.w * q.w);
+            q.x /= length;
+            q.y /= length;
+            q.z /= length;
+            q.w /= length;
 
             return q;
         }
