@@ -95,12 +95,12 @@ public class MyQuaternion
 
     public Vec3 eulerAngles
     {
-        get
+        get //Devuelve la rotacion de un quaternion en eulers
         {
            return QuatToEulerRad(this);
         }
 
-        set
+        set //Crea un quaternion en base a la rotacion en eulers
         {
             MyQuaternion result = FromEulerToQuat(value);
 
@@ -485,6 +485,11 @@ public class MyQuaternion
         this.y = Normalize(this).y;
         this.z = Normalize(this).z;
         this.w = Normalize(this).w;
+    }
+
+    public override string ToString()
+    {
+        return $"({x:F2}, {y:F2}, {z:F2}, {w:F2})";
     }
 
     public override bool Equals(object other)
